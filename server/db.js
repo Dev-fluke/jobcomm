@@ -1,201 +1,160 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createClient } from '@supabase/supabase-js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, 'database.sqlite');
-const db = new DatabaseSync(dbPath);
 
-// Initialize schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS missions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    category TEXT DEFAULT 'ทั่วไป',
-    start_date TEXT NOT NULL,
-    end_date TEXT NOT NULL,
-    start_time TEXT,
-    end_time TEXT,
-    location TEXT NOT NULL,
-    description TEXT,
-    assignee TEXT,
-    status TEXT DEFAULT 'pending',
-    priority TEXT DEFAULT 'normal',
-    notes TEXT,
-    attachment_url TEXT,
-    attachment_name TEXT,
-    attachment_type TEXT,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-  );
+// Check if Supabase credentials are provided
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
-  CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL
-  );
+export const isSupabase = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
-  CREATE TABLE IF NOT EXISTS locations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL
-  );
+export let supabase = null;
+let db = null;
 
-  CREATE TABLE IF NOT EXISTS personnel (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE NOT NULL,
-    role TEXT
-  );
+if (isSupabase) {
+  console.log('⚡ Connected to Supabase Cloud Database:', SUPABASE_URL);
+  supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+} else {
+  console.log('📦 Using Local SQLite Database');
+  const dbPath = path.join(__dirname, 'database.sqlite');
+  db = new DatabaseSync(dbPath);
 
-  CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT
-  );
-`);
+  // Initialize SQLite schema
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS missions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      category TEXT DEFAULT 'ทั่วไป',
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      start_time TEXT,
+      end_time TEXT,
+      location TEXT NOT NULL,
+      description TEXT,
+      assignee TEXT,
+      status TEXT DEFAULT 'pending',
+      priority TEXT DEFAULT 'normal',
+      notes TEXT,
+      attachment_url TEXT,
+      attachment_name TEXT,
+      attachment_type TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
 
-// Add attachment columns to existing database if missing
-try { db.exec('ALTER TABLE missions ADD COLUMN attachment_url TEXT;'); } catch {}
-try { db.exec('ALTER TABLE missions ADD COLUMN attachment_name TEXT;'); } catch {}
-try { db.exec('ALTER TABLE missions ADD COLUMN attachment_type TEXT;'); } catch {}
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL
+    );
 
-// Seed Default Categories
-const catCount = db.prepare('SELECT COUNT(*) as count FROM categories').get().count;
-if (catCount === 0) {
-  const defaultCats = [
-    'ประชุม',
-    'ซ่อมบำรุง',
-    'ตรวจเช็คระบบ',
-    'วางสายสัญญาณ',
-    'วิทยุสื่อสาร',
-    'ภารกิจพิเศษ',
-    'ฝึกอบรม',
-    'สื่อสารสนับสนุน'
-  ];
-  const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
-  for (const c of defaultCats) insertCat.run(c);
-}
+    CREATE TABLE IF NOT EXISTS locations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL
+    );
 
-// Seed Default Locations
-const locCount = db.prepare('SELECT COUNT(*) as count FROM locations').get().count;
-if (locCount === 0) {
-  const defaultLocs = [
-    'ห้องประชุม บก.อย. 1',
-    'ห้องประชุม บก.อย. 2',
-    'ศูนย์ปฏิบัติการสื่อสาร อย.',
-    'อาคารฝ่ายการสื่อสาร',
-    'เสาส่งสัญญาณวิทยุสื่อสาร อย.',
-    'ลานจอดอากาศยาน กองบิน 6',
-    'สนามฝึกทางยุทธวิธี อย.',
-    'ห้องสื่อสารเฉพาะกิจ'
-  ];
-  const insertLoc = db.prepare('INSERT OR IGNORE INTO locations (name) VALUES (?)');
-  for (const l of defaultLocs) insertLoc.run(l);
-}
+    CREATE TABLE IF NOT EXISTS personnel (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      role TEXT
+    );
 
-// Seed Default Personnel
-const persCount = db.prepare('SELECT COUNT(*) as count FROM personnel').get().count;
-if (persCount === 0) {
-  const defaultPersonnel = [
-    { name: 'น.ต. สุรชัย ช่างสื่อสาร', role: 'หน.แผนกสื่อสาร' },
-    { name: 'ร.อ. เกียรติศักดิ์ พลสื่อสาร', role: 'รอง หน.แผนก' },
-    { name: 'ร.ท. วรพงษ์ นายทหารวิทยุ', role: 'นายทหารวิทยุสื่อสาร' },
-    { name: 'พ.อ.อ. ธนกฤต ช่างสายสัญญาณ', role: 'เจ้าหน้าที่โครงข่าย' },
-    { name: 'จ.ส.อ. สมเกียรติ พลสื่อสาร', role: 'เจ้าหน้าที่สื่อสาร' },
-    { name: 'จ.ส.อ. วินัย ช่างวิทยุ', role: 'ช่างซ่อมบำรุงวิทยุ' },
-    { name: 'ส.อ. อนุชา ช่างเทคนิค', role: 'ช่างเทคนิคคอมพิวเตอร์' },
-    { name: 'ส.ท. ปฏิบัติการ เวรวิทยุ', role: 'เจ้าหน้าที่ประจำเวร' }
-  ];
-  const insertPers = db.prepare('INSERT OR IGNORE INTO personnel (name, role) VALUES (?, ?)');
-  for (const p of defaultPersonnel) insertPers.run(p.name, p.role);
-}
-
-// Seed sample missions if empty
-const countStmt = db.prepare('SELECT COUNT(*) as count FROM missions');
-const currentCount = countStmt.get();
-
-if (currentCount.count === 0) {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
-  const todayStr = `${yyyy}-${mm}-${dd}`;
-
-  const tomorrowDate = new Date(today);
-  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrowStr = `${tomorrowDate.getFullYear()}-${String(tomorrowDate.getMonth() + 1).padStart(2, '0')}-${String(tomorrowDate.getDate()).padStart(2, '0')}`;
-
-  const sampleMissions = [
-    {
-      title: 'ประชุมเตรียมความพร้อมระบบสื่อสาร บก.อย.',
-      category: 'ประชุม',
-      start_date: todayStr,
-      end_date: todayStr,
-      start_time: '13:30',
-      end_time: '15:30',
-      location: 'ห้องประชุม บก.อย. 1',
-      description: 'ประชุมชี้แจงแผนปฏิบัติการสื่อสารและการเชื่อมโยงสัญญาณวิทยุและเครือข่าย IP ประจำไตรมาส',
-      assignee: 'ร.อ. เกียรติศักดิ์ พลสื่อสาร',
-      status: 'pending',
-      priority: 'high'
-    },
-    {
-      title: 'ตรวจเช็คระบบแม่ข่ายวิทยุสื่อสาร VHF/UHF',
-      category: 'ซ่อมบำรุง',
-      start_date: todayStr,
-      end_date: todayStr,
-      start_time: '15:00',
-      end_time: '16:30',
-      location: 'เสาส่งสัญญาณวิทยุสื่อสาร อย.',
-      description: 'ทดสอบกำลังส่ง วัดค่า SWR และตรวจสอบแบตเตอรี่สำรองระบบวิทยุสื่อสารหลัก',
-      assignee: 'จ.ส.อ. วินัย ช่างวิทยุ',
-      status: 'pending',
-      priority: 'normal'
-    },
-    {
-      title: 'ติดตั้งและทดสอบระบบถ่ายทอดภาพการฝึกภาคสนาม',
-      category: 'ภารกิจพิเศษ',
-      start_date: tomorrowStr,
-      end_date: tomorrowStr,
-      start_time: '08:30',
-      end_time: '16:00',
-      location: 'สนามฝึกทางยุทธวิธี อย.',
-      description: 'วางสายสัญญาณใยแก้วนำแสงและตั้งจุดกระจายสัญญาณ Wi-Fi Mesh รองรับการควบคุมการฝึก',
-      assignee: 'พ.อ.อ. ธนกฤต ช่างสายสัญญาณ',
-      status: 'pending',
-      priority: 'urgent'
-    }
-  ];
-
-  const insertStmt = db.prepare(`
-    INSERT INTO missions (title, category, start_date, end_date, start_time, end_time, location, description, assignee, status, priority)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT
+    );
   `);
 
-  for (const m of sampleMissions) {
-    insertStmt.run(
-      m.title,
-      m.category,
-      m.start_date,
-      m.end_date,
-      m.start_time,
-      m.end_time,
-      m.location,
-      m.description,
-      m.assignee,
-      m.status,
-      m.priority
-    );
+  try { db.exec('ALTER TABLE missions ADD COLUMN attachment_url TEXT;'); } catch {}
+  try { db.exec('ALTER TABLE missions ADD COLUMN attachment_name TEXT;'); } catch {}
+  try { db.exec('ALTER TABLE missions ADD COLUMN attachment_type TEXT;'); } catch {}
+
+  // Seed Default Categories
+  const catCount = db.prepare('SELECT COUNT(*) as count FROM categories').get().count;
+  if (catCount === 0) {
+    const defaultCats = [
+      'ประชุม',
+      'ซ่อมบำรุง',
+      'ตรวจเช็คระบบ',
+      'วางสายสัญญาณ',
+      'วิทยุสื่อสาร',
+      'ภารกิจพิเศษ',
+      'ฝึกอบรม',
+      'สื่อสารสนับสนุน'
+    ];
+    const insertCat = db.prepare('INSERT OR IGNORE INTO categories (name) VALUES (?)');
+    for (const c of defaultCats) insertCat.run(c);
+  }
+
+  // Seed Default Locations
+  const locCount = db.prepare('SELECT COUNT(*) as count FROM locations').get().count;
+  if (locCount === 0) {
+    const defaultLocs = [
+      'ห้องประชุม บก.อย. 1',
+      'ห้องประชุม บก.อย. 2',
+      'ศูนย์ปฏิบัติการสื่อสาร อย.',
+      'อาคารฝ่ายการสื่อสาร',
+      'เสาส่งสัญญาณวิทยุสื่อสาร อย.',
+      'ลานจอดอากาศยาน กองบิน 6',
+      'สนามฝึกทางยุทธวิธี อย.',
+      'ห้องสื่อสารเฉพาะกิจ'
+    ];
+    const insertLoc = db.prepare('INSERT OR IGNORE INTO locations (name) VALUES (?)');
+    for (const l of defaultLocs) insertLoc.run(l);
+  }
+
+  // Seed Default Personnel
+  const persCount = db.prepare('SELECT COUNT(*) as count FROM personnel').get().count;
+  if (persCount === 0) {
+    const defaultPersonnel = [
+      { name: 'น.ต. สุรชัย ช่างสื่อสาร', role: 'หน.แผนกสื่อสาร' },
+      { name: 'ร.อ. เกียรติศักดิ์ พลสื่อสาร', role: 'รอง หน.แผนก' },
+      { name: 'ร.ท. วรพงษ์ นายทหารวิทยุ', role: 'นายทหารวิทยุสื่อสาร' },
+      { name: 'พ.อ.อ. ธนกฤต ช่างสายสัญญาณ', role: 'เจ้าหน้าที่โครงข่าย' },
+      { name: 'จ.ส.อ. สมเกียรติ พลสื่อสาร', role: 'เจ้าหน้าที่สื่อสาร' },
+      { name: 'จ.ส.อ. วินัย ช่างวิทยุ', role: 'ช่างซ่อมบำรุงวิทยุ' },
+      { name: 'ส.อ. อนุชา ช่างเทคนิค', role: 'ช่างเทคนิคคอมพิวเตอร์' },
+      { name: 'ส.ท. ปฏิบัติการ เวรวิทยุ', role: 'เจ้าหน้าที่ประจำเวร' }
+    ];
+    const insertPers = db.prepare('INSERT OR IGNORE INTO personnel (name, role) VALUES (?, ?)');
+    for (const p of defaultPersonnel) insertPers.run(p.name, p.role);
   }
 }
 
 // Preset CRUD operations
-export function getPresets() {
+export async function getPresets() {
+  if (isSupabase) {
+    const [catsRes, locsRes, persRes] = await Promise.all([
+      supabase.from('categories').select('*').order('id', { ascending: true }),
+      supabase.from('locations').select('*').order('id', { ascending: true }),
+      supabase.from('personnel').select('*').order('id', { ascending: true })
+    ]);
+    return {
+      categories: catsRes.data || [],
+      locations: locsRes.data || [],
+      personnel: persRes.data || []
+    };
+  }
+
   const categories = db.prepare('SELECT * FROM categories ORDER BY id ASC').all();
   const locations = db.prepare('SELECT * FROM locations ORDER BY id ASC').all();
   const personnel = db.prepare('SELECT * FROM personnel ORDER BY id ASC').all();
   return { categories, locations, personnel };
 }
 
-export function addPreset(type, { name, role }) {
+export async function addPreset(type, { name, role }) {
   if (!name) throw new Error('Name is required');
+
+  if (isSupabase) {
+    const payload = { name: name.trim() };
+    if (type === 'personnel') payload.role = (role || '').trim();
+    const { data, error } = await supabase.from(type).insert(payload).select().single();
+    if (error) throw error;
+    return data;
+  }
+
   if (type === 'categories') {
     const res = db.prepare('INSERT INTO categories (name) VALUES (?)').run(name.trim());
     return db.prepare('SELECT * FROM categories WHERE id = ?').get(res.lastInsertRowid);
@@ -209,7 +168,15 @@ export function addPreset(type, { name, role }) {
   throw new Error(`Invalid preset type: ${type}`);
 }
 
-export function updatePreset(type, id, { name, role }) {
+export async function updatePreset(type, id, { name, role }) {
+  if (isSupabase) {
+    const payload = { name: name.trim() };
+    if (type === 'personnel') payload.role = (role || '').trim();
+    const { data, error } = await supabase.from(type).update(payload).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+  }
+
   if (type === 'categories') {
     db.prepare('UPDATE categories SET name = ? WHERE id = ?').run(name.trim(), id);
     return db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
@@ -223,7 +190,13 @@ export function updatePreset(type, id, { name, role }) {
   throw new Error(`Invalid preset type: ${type}`);
 }
 
-export function deletePreset(type, id) {
+export async function deletePreset(type, id) {
+  if (isSupabase) {
+    const { data, error } = await supabase.from(type).delete().eq('id', id).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
   if (type === 'categories') {
     const item = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
     db.prepare('DELETE FROM categories WHERE id = ?').run(id);
@@ -241,7 +214,21 @@ export function deletePreset(type, id) {
 }
 
 // Missions queries
-export function getAllMissions({ date, status, search, category } = {}) {
+export async function getAllMissions({ date, status, search, category } = {}) {
+  if (isSupabase) {
+    let q = supabase.from('missions').select('*');
+    if (date) q = q.lte('start_date', date).gte('end_date', date);
+    if (status && status !== 'all') q = q.eq('status', status);
+    if (category && category !== 'all') q = q.eq('category', category);
+    if (search) {
+      q = q.or(`title.ilike.%${search}%,location.ilike.%${search}%,description.ilike.%${search}%,assignee.ilike.%${search}%`);
+    }
+    q = q.order('start_date', { ascending: true }).order('start_time', { ascending: true }).order('id', { ascending: true });
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  }
+
   let query = 'SELECT * FROM missions WHERE 1=1';
   const params = [];
 
@@ -270,7 +257,19 @@ export function getAllMissions({ date, status, search, category } = {}) {
   return db.prepare(query).all(...params);
 }
 
-export function getTodayMissions(todayStr) {
+export async function getTodayMissions(todayStr) {
+  if (isSupabase) {
+    const { data, error } = await supabase
+      .from('missions')
+      .select('*')
+      .lte('start_date', todayStr)
+      .gte('end_date', todayStr)
+      .order('start_time', { ascending: true })
+      .order('id', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+
   const query = `
     SELECT * FROM missions 
     WHERE (start_date <= ? AND end_date >= ?)
@@ -279,7 +278,18 @@ export function getTodayMissions(todayStr) {
   return db.prepare(query).all(todayStr, todayStr);
 }
 
-export function getOtherMissions(todayStr) {
+export async function getOtherMissions(todayStr) {
+  if (isSupabase) {
+    const { data, error } = await supabase
+      .from('missions')
+      .select('*')
+      .or(`start_date.gt.${todayStr},end_date.lt.${todayStr}`)
+      .order('start_date', { ascending: true })
+      .order('start_time', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+
   const query = `
     SELECT * FROM missions 
     WHERE start_date > ? OR end_date < ?
@@ -288,11 +298,40 @@ export function getOtherMissions(todayStr) {
   return db.prepare(query).all(todayStr, todayStr);
 }
 
-export function getMissionById(id) {
+export async function getMissionById(id) {
+  if (isSupabase) {
+    const { data, error } = await supabase.from('missions').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
   return db.prepare('SELECT * FROM missions WHERE id = ?').get(id);
 }
 
-export function createMission(data) {
+export async function createMission(data) {
+  if (isSupabase) {
+    const payload = {
+      title: data.title || '',
+      category: data.category || 'ทั่วไป',
+      start_date: data.start_date || new Date().toISOString().split('T')[0],
+      end_date: data.end_date || data.start_date || new Date().toISOString().split('T')[0],
+      start_time: data.start_time || '',
+      end_time: data.end_time || '',
+      location: data.location || '',
+      description: data.description || '',
+      assignee: data.assignee || '',
+      status: data.status || 'pending',
+      priority: data.priority || 'normal',
+      notes: data.notes || '',
+      attachment_url: data.attachment_url || null,
+      attachment_name: data.attachment_name || null,
+      attachment_type: data.attachment_type || null
+    };
+    const { data: created, error } = await supabase.from('missions').insert([payload]).select().single();
+    if (error) throw error;
+    return created;
+  }
+
   const stmt = db.prepare(`
     INSERT INTO missions (
       title, category, start_date, end_date, start_time, end_time,
@@ -322,7 +361,31 @@ export function createMission(data) {
   return getMissionById(res.lastInsertRowid);
 }
 
-export function updateMission(id, data) {
+export async function updateMission(id, data) {
+  if (isSupabase) {
+    const payload = {
+      title: data.title,
+      category: data.category,
+      start_date: data.start_date,
+      end_date: data.end_date,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      location: data.location,
+      description: data.description,
+      assignee: data.assignee,
+      status: data.status,
+      priority: data.priority,
+      notes: data.notes,
+      attachment_url: data.attachment_url !== undefined ? data.attachment_url : null,
+      attachment_name: data.attachment_name !== undefined ? data.attachment_name : null,
+      attachment_type: data.attachment_type !== undefined ? data.attachment_type : null,
+      updated_at: new Date().toISOString()
+    };
+    const { data: updated, error } = await supabase.from('missions').update(payload).eq('id', id).select().single();
+    if (error) throw error;
+    return updated;
+  }
+
   const stmt = db.prepare(`
     UPDATE missions SET
       title = ?,
@@ -366,24 +429,64 @@ export function updateMission(id, data) {
   return getMissionById(id);
 }
 
-export function updateMissionStatus(id, status) {
+export async function updateMissionStatus(id, status) {
+  if (isSupabase) {
+    const { data: updated, error } = await supabase
+      .from('missions')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return updated;
+  }
+
   db.prepare('UPDATE missions SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, id);
   return getMissionById(id);
 }
 
-export function deleteMission(id) {
+export async function deleteMission(id) {
+  if (isSupabase) {
+    const { data, error } = await supabase.from('missions').delete().eq('id', id).select().maybeSingle();
+    if (error) throw error;
+    return data;
+  }
+
   const mission = getMissionById(id);
   db.prepare('DELETE FROM missions WHERE id = ?').run(id);
   return mission;
 }
 
-export function deleteMissionsByMonth(monthStr) {
+export async function deleteMissionsByMonth(monthStr) {
+  if (isSupabase) {
+    const { data, error } = await supabase.from('missions').delete().like('start_date', `${monthStr}%`).select();
+    if (error) throw error;
+    return { deletedCount: data ? data.length : 0 };
+  }
+
   const countBefore = db.prepare("SELECT COUNT(*) as c FROM missions WHERE start_date LIKE ?").get(`${monthStr}%`).c;
   const res = db.prepare("DELETE FROM missions WHERE start_date LIKE ?").run(`${monthStr}%`);
   return { deletedCount: res.changes !== undefined ? res.changes : countBefore };
 }
 
-export function getStats(todayStr) {
+export async function getStats(todayStr) {
+  if (isSupabase) {
+    const [totalRes, todayRes, inProgRes, compRes, pendRes] = await Promise.all([
+      supabase.from('missions').select('*', { count: 'exact', head: true }),
+      supabase.from('missions').select('*', { count: 'exact', head: true }).lte('start_date', todayStr).gte('end_date', todayStr),
+      supabase.from('missions').select('*', { count: 'exact', head: true }).eq('status', 'in_progress'),
+      supabase.from('missions').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+      supabase.from('missions').select('*', { count: 'exact', head: true }).eq('status', 'pending')
+    ]);
+    return {
+      total: totalRes.count || 0,
+      todayCount: todayRes.count || 0,
+      inProgress: inProgRes.count || 0,
+      completed: compRes.count || 0,
+      pending: pendRes.count || 0
+    };
+  }
+
   const total = db.prepare('SELECT COUNT(*) as c FROM missions').get().c;
   const todayCount = db.prepare('SELECT COUNT(*) as c FROM missions WHERE start_date <= ? AND end_date >= ?').get(todayStr, todayStr).c;
   const inProgress = db.prepare("SELECT COUNT(*) as c FROM missions WHERE status = 'in_progress'").get().c;

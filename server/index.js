@@ -5,6 +5,8 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import {
+  isSupabase,
+  supabase,
   getAllMissions,
   getTodayMissions,
   getOtherMissions,
@@ -36,7 +38,7 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Serve uploaded files statically
+// Serve uploaded files statically (for local fallback)
 app.use('/uploads', express.static(uploadsDir));
 
 // Multer storage configuration for PDF and Images
@@ -74,12 +76,42 @@ const upload = multer({
 });
 
 // Upload endpoint
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'กรุณาเลือกไฟล์ที่ต้องการอัปโหลด' });
     }
-    const fileUrl = `/uploads/${req.file.filename}`;
+
+    let fileUrl = `/uploads/${req.file.filename}`;
+
+    // If Supabase is active, upload to Supabase Storage Bucket 'attachments'
+    if (isSupabase && supabase) {
+      const fileExt = path.extname(req.file.originalname);
+      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e6)}${fileExt}`;
+      const fileBuffer = fs.readFileSync(req.file.path);
+
+      const { data: uploadData, error: uploadErr } = await supabase.storage
+        .from('attachments')
+        .upload(uniqueName, fileBuffer, {
+          contentType: req.file.mimetype,
+          upsert: true
+        });
+
+      if (uploadErr) {
+        console.error('Supabase storage upload error:', uploadErr);
+        throw uploadErr;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('attachments')
+        .getPublicUrl(uniqueName);
+
+      fileUrl = publicUrlData.publicUrl;
+
+      // Clean up local temp file
+      try { fs.unlinkSync(req.file.path); } catch {}
+    }
+
     res.json({
       success: true,
       url: fileUrl,
@@ -135,20 +167,20 @@ function getTodayDateString(req) {
 }
 
 // PRESETS API (Categories, Locations, Personnel)
-app.get('/api/presets', (req, res) => {
+app.get('/api/presets', async (req, res) => {
   try {
-    const presets = getPresets();
+    const presets = await getPresets();
     res.json({ success: true, data: presets });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-app.post('/api/presets/:type', (req, res) => {
+app.post('/api/presets/:type', async (req, res) => {
   try {
     const { type } = req.params;
     const { name, role } = req.body;
-    const item = addPreset(type, { name, role });
+    const item = await addPreset(type, { name, role });
     broadcastUpdate('presets_updated', { type, item });
     res.status(201).json({ success: true, data: item });
   } catch (error) {
@@ -156,11 +188,11 @@ app.post('/api/presets/:type', (req, res) => {
   }
 });
 
-app.put('/api/presets/:type/:id', (req, res) => {
+app.put('/api/presets/:type/:id', async (req, res) => {
   try {
     const { type, id } = req.params;
     const { name, role } = req.body;
-    const item = updatePreset(type, Number(id), { name, role });
+    const item = await updatePreset(type, Number(id), { name, role });
     broadcastUpdate('presets_updated', { type, item });
     res.json({ success: true, data: item });
   } catch (error) {
@@ -168,10 +200,10 @@ app.put('/api/presets/:type/:id', (req, res) => {
   }
 });
 
-app.delete('/api/presets/:type/:id', (req, res) => {
+app.delete('/api/presets/:type/:id', async (req, res) => {
   try {
     const { type, id } = req.params;
-    const item = deletePreset(type, Number(id));
+    const item = await deletePreset(type, Number(id));
     broadcastUpdate('presets_updated', { type, id });
     res.json({ success: true, data: item });
   } catch (error) {
@@ -180,10 +212,10 @@ app.delete('/api/presets/:type/:id', (req, res) => {
 });
 
 // GET all missions with filters
-app.get('/api/missions', (req, res) => {
+app.get('/api/missions', async (req, res) => {
   try {
     const { date, status, search, category } = req.query;
-    const missions = getAllMissions({ date, status, search, category });
+    const missions = await getAllMissions({ date, status, search, category });
     res.json({ success: true, data: missions });
   } catch (error) {
     console.error('Error fetching missions:', error);
@@ -192,10 +224,10 @@ app.get('/api/missions', (req, res) => {
 });
 
 // GET today's missions
-app.get('/api/missions/today', (req, res) => {
+app.get('/api/missions/today', async (req, res) => {
   try {
     const todayStr = getTodayDateString(req);
-    const missions = getTodayMissions(todayStr);
+    const missions = await getTodayMissions(todayStr);
     res.json({ success: true, date: todayStr, data: missions });
   } catch (error) {
     console.error('Error fetching today missions:', error);
@@ -204,10 +236,10 @@ app.get('/api/missions/today', (req, res) => {
 });
 
 // GET other days' missions
-app.get('/api/missions/other', (req, res) => {
+app.get('/api/missions/other', async (req, res) => {
   try {
     const todayStr = getTodayDateString(req);
-    const missions = getOtherMissions(todayStr);
+    const missions = await getOtherMissions(todayStr);
     res.json({ success: true, date: todayStr, data: missions });
   } catch (error) {
     console.error('Error fetching other missions:', error);
@@ -216,9 +248,9 @@ app.get('/api/missions/other', (req, res) => {
 });
 
 // GET single mission
-app.get('/api/missions/:id', (req, res) => {
+app.get('/api/missions/:id', async (req, res) => {
   try {
-    const mission = getMissionById(Number(req.params.id));
+    const mission = await getMissionById(Number(req.params.id));
     if (!mission) {
       return res.status(404).json({ success: false, error: 'Mission not found' });
     }
@@ -229,7 +261,7 @@ app.get('/api/missions/:id', (req, res) => {
 });
 
 // POST new mission
-app.post('/api/missions', (req, res) => {
+app.post('/api/missions', async (req, res) => {
   try {
     const {
       title,
@@ -256,7 +288,7 @@ app.post('/api/missions', (req, res) => {
       });
     }
 
-    const newMission = createMission({
+    const newMission = await createMission({
       title,
       category: category || 'ทั่วไป',
       start_date,
@@ -283,15 +315,15 @@ app.post('/api/missions', (req, res) => {
 });
 
 // PUT update mission
-app.put('/api/missions/:id', (req, res) => {
+app.put('/api/missions/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = getMissionById(id);
+    const existing = await getMissionById(id);
     if (!existing) {
       return res.status(404).json({ success: false, error: 'Mission not found' });
     }
 
-    const updated = updateMission(id, {
+    const updated = await updateMission(id, {
       ...existing,
       ...req.body
     });
@@ -305,7 +337,7 @@ app.put('/api/missions/:id', (req, res) => {
 });
 
 // PATCH mission status
-app.patch('/api/missions/:id/status', (req, res) => {
+app.patch('/api/missions/:id/status', async (req, res) => {
   try {
     const id = Number(req.params.id);
     const { status } = req.body;
@@ -313,7 +345,7 @@ app.patch('/api/missions/:id/status', (req, res) => {
       return res.status(400).json({ success: false, error: 'Status is required' });
     }
 
-    const updated = updateMissionStatus(id, status);
+    const updated = await updateMissionStatus(id, status);
     broadcastUpdate('mission_status_changed', updated);
     res.json({ success: true, data: updated });
   } catch (error) {
@@ -322,10 +354,10 @@ app.patch('/api/missions/:id/status', (req, res) => {
 });
 
 // DELETE mission
-app.delete('/api/missions/:id', (req, res) => {
+app.delete('/api/missions/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const deleted = deleteMission(id);
+    const deleted = await deleteMission(id);
     if (!deleted) {
       return res.status(404).json({ success: false, error: 'Mission not found' });
     }
@@ -337,7 +369,7 @@ app.delete('/api/missions/:id', (req, res) => {
 });
 
 // DELETE missions by month with password protection (26366)
-app.post('/api/missions/delete-month', (req, res) => {
+app.post('/api/missions/delete-month', async (req, res) => {
   try {
     const { month, password } = req.body;
     if (password !== '26366') {
@@ -354,7 +386,7 @@ app.post('/api/missions/delete-month', (req, res) => {
       });
     }
 
-    const result = deleteMissionsByMonth(month);
+    const result = await deleteMissionsByMonth(month);
     broadcastUpdate('missions_month_deleted', { month, deletedCount: result.deletedCount });
     res.json({
       success: true,
@@ -368,10 +400,10 @@ app.post('/api/missions/delete-month', (req, res) => {
 });
 
 // GET stats
-app.get('/api/stats', (req, res) => {
+app.get('/api/stats', async (req, res) => {
   try {
     const todayStr = getTodayDateString(req);
-    const stats = getStats(todayStr);
+    const stats = await getStats(todayStr);
     res.json({ success: true, data: stats });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
