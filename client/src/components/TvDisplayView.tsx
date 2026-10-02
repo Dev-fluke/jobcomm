@@ -33,7 +33,7 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [themeMode, setThemeMode] = useState<'military-dark' | 'clean-light'>('military-dark');
-  const [hideCompleted, setHideCompleted] = useState<boolean>(false);
+  const [hideCompleted, setHideCompleted] = useState<boolean>(true);
 
   // Toggle browser fullscreen
   const toggleFullscreen = () => {
