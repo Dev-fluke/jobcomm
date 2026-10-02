@@ -102,15 +102,17 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
     // Sort items by start_time ASC
     const sortedItems = [...items].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
 
-    const missionLines = sortedItems.map((m) => {
-      const timeStr = m.start_time
-        ? `${m.start_time}${m.end_time ? ' - ' + m.end_time : ''} น.`
-        : 'ไม่ระบุเวลา';
-      const locationStr = m.location ? `, ${m.location}` : '';
-      return `- ${timeStr} ${m.title}${locationStr}`;
-    }).join('\n');
+    const cleanTime = (t?: string) => (t || '').replace(/:/g, '').trim();
 
-    const fullText = `ภารกิจ ผสส.อย.ประจำวันที่ : ${dateFormatted}\n${missionLines}\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
+    const missionBlocks = sortedItems.map((m) => {
+      const s = cleanTime(m.start_time);
+      const e = cleanTime(m.end_time);
+      const timeStr = s && e ? `${s} - ${e}` : s ? s : 'ไม่ระบุเวลา';
+      const locationStr = m.location ? `, ${m.location}` : '';
+      return `${timeStr} ${m.title}${locationStr}`;
+    }).join('\n\n');
+
+    const fullText = `ภารกิจวันที่ ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
 
     const success = await copyTextToClipboard(fullText);
     if (success) {
