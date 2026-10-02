@@ -4,6 +4,7 @@ import { MissionCard } from './MissionCard';
 import {
   formatThaiDateMedium,
   formatThaiDateShort,
+  formatThaiDateFull,
   getTodayDateString,
   sortMissionsForDisplay,
   copyTextToClipboard
@@ -32,15 +33,33 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
   onToast
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [dateFilterMode, setDateFilterMode] = useState<'upcoming' | 'specific' | 'all'>('upcoming');
+  const [dateFilterMode, setDateFilterMode] = useState<'upcoming' | 'tomorrow' | 'specific' | 'all'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Compute tomorrow date string (YYYY-MM-DD)
+  const tomorrowDateStr = useMemo(() => {
+    const base = todayDateStr
+      ? new Date(todayDateStr + 'T00:00:00')
+      : new Date(now);
+    const d = new Date(base);
+    d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, [todayDateStr, now]);
 
   // Group missions or filter
   const displayedMissions = useMemo(() => {
     return missions.filter((m) => {
       // Exclude or include based on mode
+      if (dateFilterMode === 'tomorrow') {
+        const end = m.end_date || m.start_date;
+        return m.start_date <= tomorrowDateStr && end >= tomorrowDateStr;
+      }
       if (dateFilterMode === 'specific' && selectedDate) {
-        return m.start_date <= selectedDate && m.end_date >= selectedDate;
+        const end = m.end_date || m.start_date;
+        return m.start_date <= selectedDate && end >= selectedDate;
       }
       if (dateFilterMode === 'upcoming') {
         return m.start_date > todayDateStr;
@@ -122,6 +141,16 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
               ภารกิจล่วงหน้า
             </button>
             <button
+              onClick={() => setDateFilterMode('tomorrow')}
+              className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all ${
+                dateFilterMode === 'tomorrow'
+                  ? 'bg-blue-800 text-white'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              ภารกิจพรุ่งนี้
+            </button>
+            <button
               onClick={() => setDateFilterMode('specific')}
               className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all ${
                 dateFilterMode === 'specific'
@@ -143,6 +172,24 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Date details banner if in 'tomorrow' mode */}
+        {dateFilterMode === 'tomorrow' && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-blue-800" />
+                ภารกิจวันพรุ่งนี้ :
+              </span>
+              <span className="text-xs sm:text-sm text-blue-900 font-bold bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-md shadow-2xs">
+                {formatThaiDateFull(tomorrowDateStr)}
+              </span>
+            </div>
+            <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+              พบ {displayedMissions.length} ภารกิจ
+            </span>
+          </div>
+        )}
 
         {/* Date picker if in 'specific' mode */}
         {dateFilterMode === 'specific' && (
@@ -238,10 +285,14 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
           <div className="text-center py-12 px-4 bg-white border-2 border-dashed border-slate-300 rounded-lg">
             <Calendar className="w-12 h-12 mx-auto text-slate-400 mb-3" />
             <h3 className="text-base font-bold text-slate-700">
-              ไม่พบภารกิจตามช่วงวันที่เลือก
+              {dateFilterMode === 'tomorrow'
+                ? `ยังไม่มีภารกิจในวันพรุ่งนี้ (${formatThaiDateMedium(tomorrowDateStr)})`
+                : 'ไม่พบภารกิจตามช่วงวันที่เลือก'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              สามารถตรวจสอบช่วงเวลาอื่นๆ หรือเพิ่มภารกิจใหม่ได้จากเมนู "เพิ่มภารกิจใหม่"
+              {dateFilterMode === 'tomorrow'
+                ? 'สามารถเพิ่มภารกิจล่วงหน้าสำหรับวันพรุ่งนี้ได้จากเมนู "เพิ่มภารกิจใหม่"'
+                : 'สามารถตรวจสอบช่วงเวลาอื่นๆ หรือเพิ่มภารกิจใหม่ได้จากเมนู "เพิ่มภารกิจใหม่"'}
             </p>
           </div>
         )}
