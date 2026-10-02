@@ -236,7 +236,7 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
               <div className="sticky top-20 z-10 bg-blue-900/95 backdrop-blur-md px-3.5 py-2 rounded-lg border border-blue-950 flex items-center justify-between shadow-md">
                 <span className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-blue-200 shrink-0" />
-                  ภารกิจประจำวันที่ {formatThaiDateMedium(dateKey)}
+                  {formatThaiDateShort(dateKey)}
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-blue-950 bg-white px-2.5 py-0.5 rounded-full shadow-xs">

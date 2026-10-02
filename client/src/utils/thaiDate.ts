@@ -66,7 +66,7 @@ export function formatThaiDateFull(dateStr: string | Date): string {
   const month = THAI_MONTHS_FULL[d.getMonth()];
   const thaiYear = d.getFullYear() + 543;
 
-  return `${dayName}ที่ ${day} ${month} พ.ศ. ${thaiYear}`;
+  return `${dayName}ที่ ${day} ${month} ${thaiYear}`;
 }
 
 /**
