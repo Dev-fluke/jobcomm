@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import type { Mission } from '../types';
 import {
   getMissionCountdown,
@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Copy,
-  Check
+  Check,
+  ChevronLeft
 } from 'lucide-react';
 
 interface MissionCardProps {
@@ -40,6 +41,16 @@ export const MissionCard: React.FC<MissionCardProps> = ({
   isTvMode = false
 }) => {
   const [isCopied, setIsCopied] = useState(false);
+  const [offsetX, setOffsetX] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const dragStartX = useRef(0);
+  const dragStartY = useRef(0);
+  const dragStartOffset = useRef(0);
+  const isPointerDown = useRef(false);
+  const hasMovedHorizontally = useRef(false);
+
   // Automatic time-based countdown and status
   const countdown = getMissionCountdown(
     mission.start_date,
@@ -53,6 +64,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
   const autoStatus = getAutomaticMissionStatus(mission, now);
   const isCompleted = autoStatus === 'completed';
   const isOngoing = autoStatus === 'in_progress';
+  const canSlideToClose = !isTvMode && !!onCompleteEarly && !isCompleted;
 
   // Status badge styling matching military wireframe aesthetic
   const getBadgeStyle = () => {
@@ -71,11 +83,101 @@ export const MissionCard: React.FC<MissionCardProps> = ({
     return 'bg-slate-50 text-slate-700 border-slate-200';
   };
 
-  const handleCloseMission = () => {
+  const handleCloseMission = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const currentNow = new Date();
     const timeStr = `${String(currentNow.getHours()).padStart(2, '0')}:${String(currentNow.getMinutes()).padStart(2, '0')}`;
     if (confirm(`ยืนยันการปิดงาน "${mission.title}" ก่อนเวลากำหนดหรือไม่?\n(ระบบจะเปลี่ยนสถานะเป็น "เสร็จสิ้น" และอัปเดตเวลาสิ้นสุดเป็น ${timeStr} น.)`)) {
       onCompleteEarly?.(mission.id, timeStr);
+      setIsOpen(false);
+      setOffsetX(0);
+    }
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a') || target.closest('input')) {
+      return;
+    }
+    isPointerDown.current = true;
+    dragStartX.current = e.clientX;
+    dragStartY.current = e.clientY;
+    dragStartOffset.current = offsetX;
+    hasMovedHorizontally.current = false;
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isPointerDown.current) return;
+    const deltaX = e.clientX - dragStartX.current;
+    const deltaY = e.clientY - dragStartY.current;
+
+    if (!hasMovedHorizontally.current) {
+      if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 6) {
+        isPointerDown.current = false;
+        setIsDragging(false);
+        return;
+      }
+      if (Math.abs(deltaX) > 6) {
+        hasMovedHorizontally.current = true;
+        setIsDragging(true);
+      }
+    }
+
+    if (hasMovedHorizontally.current) {
+      let newOffset = dragStartOffset.current + deltaX;
+      if (newOffset > 0) newOffset = newOffset * 0.15;
+      if (newOffset < -130) newOffset = -130;
+      setOffsetX(newOffset);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (!isPointerDown.current) return;
+    isPointerDown.current = false;
+    setIsDragging(false);
+
+    if (hasMovedHorizontally.current) {
+      if (offsetX < -45) {
+        setOffsetX(-108);
+        setIsOpen(true);
+      } else {
+        setOffsetX(0);
+        setIsOpen(false);
+      }
+    }
+  };
+
+  const handlePointerCancel = () => {
+    isPointerDown.current = false;
+    setIsDragging(false);
+    if (offsetX < -45) {
+      setOffsetX(-108);
+      setIsOpen(true);
+    } else {
+      setOffsetX(0);
+      setIsOpen(false);
+    }
+  };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (isOpen) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('button') && !target.closest('a')) {
+        setIsOpen(false);
+        setOffsetX(0);
+      }
+    }
+  };
+
+  const handleToggleSlide = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isOpen) {
+      setIsOpen(false);
+      setOffsetX(0);
+    } else {
+      setIsOpen(true);
+      setOffsetX(-108);
     }
   };
 
@@ -95,59 +197,98 @@ export const MissionCard: React.FC<MissionCardProps> = ({
   };
 
   return (
-    <div
-      className={`relative bg-white border-2 transition-all rounded-lg overflow-hidden flex flex-col h-full ${
-        isCompleted
-          ? 'border-slate-300 bg-slate-50/70 opacity-75'
-          : isOngoing
-          ? 'border-emerald-600 shadow-md ring-2 ring-emerald-500/20'
-          : mission.priority === 'urgent'
-          ? 'border-red-500 shadow-sm ring-1 ring-red-200'
-          : 'border-slate-800 shadow-xs hover:shadow-md'
-      } ${isTvMode ? 'p-6 text-base' : 'p-4 sm:p-5 text-sm'}`}
-    >
-      {/* Top Row: Mission Title (Left) + Countdown / Status (Right) - Faithful to wireframe */}
-      <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-slate-200">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline flex-wrap gap-1.5">
-            <span
-              className={`font-bold shrink-0 ${
-                isTvMode ? 'text-xl text-blue-950' : 'text-base sm:text-lg text-slate-900'
-              }`}
-            >
-              {mission.category ? `${mission.category} :` : 'ภารกิจ :'}
-            </span>
-            <span
-              className={`font-bold break-words text-slate-900 ${
-                isCompleted ? 'line-through text-slate-500' : ''
-              } ${isTvMode ? 'text-xl text-slate-950' : 'text-base sm:text-lg'}`}
-            >
-              {mission.title || '-'}
-            </span>
+    <div className="relative overflow-hidden rounded-lg group select-none h-full">
+      {/* Background Slide Action (เปิดออกเมื่อสไลด์การ์ดไปทางซ้าย) */}
+      {canSlideToClose && (
+        <div className="absolute inset-y-0 right-0 flex items-stretch z-0">
+          <button
+            type="button"
+            onClick={handleCloseMission}
+            className="w-28 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white flex flex-col items-center justify-center gap-1 font-bold transition-colors select-none shadow-inner p-2 cursor-pointer focus:outline-none"
+            title="คลิกเพื่อปิดงาน (เสร็จสิ้นก่อนเวลา พร้อมบันทึกเวลาปัจจุบัน)"
+          >
+            <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7 animate-pulse text-white drop-shadow" />
+            <span className="text-xs sm:text-sm font-bold tracking-wide">ปิดงาน</span>
+            <span className="text-[10px] text-emerald-100 font-normal">กดเพื่อจบงาน</span>
+          </button>
+        </div>
+      )}
+
+      {/* Foreground Card */}
+      <div
+        style={{
+          transform: canSlideToClose ? `translateX(${offsetX}px)` : 'none',
+          transition: isDragging ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          touchAction: canSlideToClose ? 'pan-y' : 'auto',
+          cursor: canSlideToClose ? (isDragging ? 'grabbing' : 'grab') : 'default'
+        }}
+        onPointerDown={canSlideToClose ? handlePointerDown : undefined}
+        onPointerMove={canSlideToClose ? handlePointerMove : undefined}
+        onPointerUp={canSlideToClose ? handlePointerUp : undefined}
+        onPointerCancel={canSlideToClose ? handlePointerCancel : undefined}
+        onClick={handleCardClick}
+        className={`relative z-10 bg-white border-2 transition-shadow rounded-lg overflow-hidden flex flex-col h-full ${
+          isCompleted
+            ? 'border-slate-300 bg-slate-50/70 opacity-75'
+            : isOngoing
+            ? 'border-emerald-600 shadow-md ring-2 ring-emerald-500/20'
+            : mission.priority === 'urgent'
+            ? 'border-red-500 shadow-sm ring-1 ring-red-200'
+            : 'border-slate-800 shadow-xs hover:shadow-md'
+        } ${isTvMode ? 'p-6 text-base' : 'p-4 sm:p-5 text-sm'}`}
+      >
+        {/* Top Row: Mission Title (Left) + Countdown / Status (Right) - Faithful to wireframe */}
+        <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-slate-200">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline flex-wrap gap-1.5">
+              <span
+                className={`font-bold shrink-0 ${
+                  isTvMode ? 'text-xl text-blue-950' : 'text-base sm:text-lg text-slate-900'
+                }`}
+              >
+                {mission.category ? `${mission.category} :` : 'ภารกิจ :'}
+              </span>
+              <span
+                className={`font-bold break-words text-slate-900 ${
+                  isCompleted ? 'line-through text-slate-500' : ''
+                } ${isTvMode ? 'text-xl text-slate-950' : 'text-base sm:text-lg'}`}
+              >
+                {mission.title || '-'}
+              </span>
+            </div>
+
+            {/* Urgent priority badge */}
+            {mission.priority === 'urgent' && !isCompleted && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded mt-1">
+                <AlertTriangle className="w-3 h-3" /> ด่วนที่สุด
+              </span>
+            )}
           </div>
 
-          {/* Urgent priority badge */}
-          {mission.priority === 'urgent' && !isCompleted && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded mt-1">
-              <AlertTriangle className="w-3 h-3" /> ด่วนที่สุด
-            </span>
-          )}
-        </div>
-
-        {/* Wireframe top-right label: "ในอีก ... ชม." / "กำลังดำเนินการ" / "เสร็จสิ้นแล้ว" */}
-        <div className="shrink-0 text-right flex items-center gap-2">
-          {/* ปุ่มปิดงาน: แสดงเมื่อสถานะคือกำลังดำเนินการ และไม่ใช่โหมดทีวี */}
-          {isOngoing && !isTvMode && onCompleteEarly && (
-            <button
-              type="button"
-              onClick={handleCloseMission}
-              className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-md text-xs sm:text-sm font-bold shadow-xs transition-all hover:scale-105"
-              title="คลิกเพื่อปิดงาน (เสร็จสิ้นก่อนเวลา พร้อมบันทึกเวลาปัจจุบัน)"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span>ปิดงาน</span>
-            </button>
-          )}
+          {/* Wireframe top-right label: "ในอีก ... ชม." / "กำลังดำเนินการ" / "เสร็จสิ้นแล้ว" */}
+          <div className="shrink-0 text-right flex items-center gap-2">
+            {/* Slide-to-Close Button / Handle (แทนปุ่มปิดงานแบบเดิม) */}
+            {canSlideToClose && (
+              <button
+                type="button"
+                onClick={handleToggleSlide}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all border shadow-2xs cursor-pointer ${
+                  isOpen
+                    ? 'bg-slate-200 text-slate-700 border-slate-300'
+                    : isOngoing
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 animate-pulse'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+                title={isOpen ? 'คลิกเพื่อหุบการ์ดกลับ' : 'คลิกหรือสไลด์การ์ดไปทางซ้ายเพื่อปิดงาน'}
+              >
+                <ChevronLeft
+                  className={`w-3.5 h-3.5 text-emerald-700 transition-transform duration-200 ${
+                    isOpen ? 'rotate-180' : ''
+                  }`}
+                />
+                <span>{isOpen ? 'หุบ' : 'สไลด์ปิดงาน'}</span>
+              </button>
+            )}
 
           <span
             className={`inline-block px-2.5 py-1 rounded-md border text-xs sm:text-sm font-semibold tracking-wide ${getBadgeStyle()} ${
@@ -286,5 +427,6 @@ export const MissionCard: React.FC<MissionCardProps> = ({
         )}
       </div>
     </div>
-  );
+  </div>
+);
 };
