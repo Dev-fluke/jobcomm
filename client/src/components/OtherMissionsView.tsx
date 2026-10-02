@@ -1,8 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import type { Mission } from '../types';
 import { MissionCard } from './MissionCard';
-import { formatThaiDateMedium, formatThaiDateShort, getTodayDateString, sortMissionsForDisplay } from '../utils/thaiDate';
-import { Calendar, Search, Filter, Plus, ArrowRight } from 'lucide-react';
+import {
+  formatThaiDateMedium,
+  formatThaiDateShort,
+  getTodayDateString,
+  sortMissionsForDisplay,
+  copyTextToClipboard
+} from '../utils/thaiDate';
+import { Calendar, Search, Filter, Plus, ArrowRight, Copy, Check } from 'lucide-react';
 
 interface OtherMissionsViewProps {
   missions: Mission[];
@@ -67,6 +73,37 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, list]) => [date, sortMissionsForDisplay(list, now)] as [string, Mission[]]);
   }, [displayedMissions, now]);
+
+  const [copiedDate, setCopiedDate] = useState<string | null>(null);
+
+  // Copy full day missions text formatted for LINE
+  const handleCopyDayMissions = async (dateKey: string, items: Mission[]) => {
+    const dateFormatted = formatThaiDateShort(dateKey);
+
+    // Sort items by start_time ASC
+    const sortedItems = [...items].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+
+    const missionBlocks = sortedItems.map((m) => {
+      const timeStr = m.start_time
+        ? `${m.start_time}${m.end_time ? ' - ' + m.end_time : ''} น.`
+        : 'ไม่ระบุเวลา';
+      const locationStr = m.location ? `, ${m.location}` : '';
+      return `⏰ เวลา : ${timeStr}\n🔹 ${m.title}${locationStr}`;
+    }).join('\n\n');
+
+    const fullText = `📅 วันที่ : ${dateFormatted}\n\n${missionBlocks}\n\nคลิกดูภารกิจ https://jobcomm.onrender.com/`;
+
+    const success = await copyTextToClipboard(fullText);
+    if (success) {
+      setCopiedDate(dateKey);
+      onToast?.('คัดลอกข้อความสรุปภารกิจสำหรับส่ง LINE เรียบร้อยแล้ว', 'success');
+      setTimeout(() => {
+        setCopiedDate((curr) => (curr === dateKey ? null : curr));
+      }, 2000);
+    } else {
+      onToast?.('ไม่สามารถคัดลอกข้อความได้', 'error');
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-5 space-y-4">
@@ -152,9 +189,33 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
                   <Calendar className="w-4 h-4 text-blue-200 shrink-0" />
                   ภารกิจประจำวันที่ {formatThaiDateMedium(dateKey)}
                 </span>
-                <span className="text-xs font-bold text-blue-950 bg-white px-2.5 py-0.5 rounded-full shadow-xs">
-                  {items.length} ภารกิจ
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-blue-950 bg-white px-2.5 py-0.5 rounded-full shadow-xs">
+                    {items.length} ภารกิจ
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyDayMissions(dateKey, items)}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-all shadow-xs active:scale-95 cursor-pointer ${
+                      copiedDate === dateKey
+                        ? 'bg-emerald-500 text-white ring-2 ring-emerald-300'
+                        : 'bg-white/15 hover:bg-white/25 text-white border border-white/20'
+                    }`}
+                    title="คัดลอกข้อความสรุปภารกิจของวันนี้สำหรับส่งต่อเข้า LINE"
+                  >
+                    {copiedDate === dateKey ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-white stroke-[2.5]" />
+                        <span>คัดลอกแล้ว</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-blue-200" />
+                        <span>คัดลอก</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Cards */}
