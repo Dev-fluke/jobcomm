@@ -83,15 +83,15 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
     // Sort items by start_time ASC
     const sortedItems = [...items].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
 
-    const missionBlocks = sortedItems.map((m) => {
+    const missionLines = sortedItems.map((m) => {
       const timeStr = m.start_time
         ? `${m.start_time}${m.end_time ? ' - ' + m.end_time : ''} น.`
         : 'ไม่ระบุเวลา';
       const locationStr = m.location ? `, ${m.location}` : '';
-      return `⏰ เวลา : ${timeStr}\n🔹 ${m.title}${locationStr}`;
-    }).join('\n\n');
+      return `- ${timeStr} ${m.title}${locationStr}`;
+    }).join('\n');
 
-    const fullText = `📅 วันที่ : ${dateFormatted}\n\n${missionBlocks}\n\nคลิกดูภารกิจ https://jobcomm.onrender.com/`;
+    const fullText = `ภารกิจ ผสส.อย.ประจำวันที่ : ${dateFormatted}\n${missionLines}\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
 
     const success = await copyTextToClipboard(fullText);
     if (success) {
