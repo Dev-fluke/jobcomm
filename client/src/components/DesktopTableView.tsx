@@ -71,10 +71,10 @@ const TableSlideCloseButton: React.FC<{
       type="button"
       onClick={() => setIsOpen(true)}
       className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-      title="สไลด์/คลิกเพื่อเปิดปุ่มปิดงาน"
+      title="คลิกเพื่อเปิดปุ่มปิดงาน"
     >
-      <ChevronLeft className="w-3 h-3 text-emerald-600 animate-pulse" />
-      <span>สไลด์ปิดงาน</span>
+      <span className="font-black tracking-tighter text-emerald-600 animate-pulse">{"<<<"}</span>
+      <span>ปิดงาน</span>
     </button>
   );
 };

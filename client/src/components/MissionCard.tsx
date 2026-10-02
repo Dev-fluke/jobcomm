@@ -267,36 +267,13 @@ export const MissionCard: React.FC<MissionCardProps> = ({
 
           {/* Wireframe top-right label: "ในอีก ... ชม." / "กำลังดำเนินการ" / "เสร็จสิ้นแล้ว" */}
           <div className="shrink-0 text-right flex items-center gap-2">
-            {/* Slide-to-Close Button / Handle (แทนปุ่มปิดงานแบบเดิม) */}
-            {canSlideToClose && (
-              <button
-                type="button"
-                onClick={handleToggleSlide}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all border shadow-2xs cursor-pointer ${
-                  isOpen
-                    ? 'bg-slate-200 text-slate-700 border-slate-300'
-                    : isOngoing
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 animate-pulse'
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                }`}
-                title={isOpen ? 'คลิกเพื่อหุบการ์ดกลับ' : 'คลิกหรือสไลด์การ์ดไปทางซ้ายเพื่อปิดงาน'}
-              >
-                <ChevronLeft
-                  className={`w-3.5 h-3.5 text-emerald-700 transition-transform duration-200 ${
-                    isOpen ? 'rotate-180' : ''
-                  }`}
-                />
-                <span>{isOpen ? 'หุบ' : 'สไลด์ปิดงาน'}</span>
-              </button>
-            )}
-
-          <span
-            className={`inline-block px-2.5 py-1 rounded-md border text-xs sm:text-sm font-semibold tracking-wide ${getBadgeStyle()} ${
-              isTvMode ? 'text-base px-4 py-2' : ''
-            }`}
-          >
-            {countdown.text}
-          </span>
+            <span
+              className={`inline-block px-2.5 py-1 rounded-md border text-xs sm:text-sm font-semibold tracking-wide ${getBadgeStyle()} ${
+                isTvMode ? 'text-base px-4 py-2' : ''
+              }`}
+            >
+              {countdown.text}
+            </span>
 
           {/* Discreet Copy / Edit / Delete icons (hidden in TV mode) */}
           {!isTvMode && (
@@ -411,7 +388,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
 
         {/* Attachment (PDF or Image) */}
         {mission.attachment_url && (
-          <div className="pt-2 border-t border-slate-100 flex items-center gap-2 mt-auto">
+          <div className="pt-2 border-t border-slate-100 flex items-center gap-2 mt-auto pr-14">
             <a
               href={mission.attachment_url}
               target="_blank"
@@ -426,6 +403,27 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           </div>
         )}
       </div>
+
+      {/* สัญลักษณ์ "<<<" ที่มุมขวาล่างของ card สำหรับสไลด์ปิดงาน */}
+      {canSlideToClose && (
+        <button
+          type="button"
+          onClick={handleToggleSlide}
+          className={`absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded transition-all cursor-pointer flex items-center justify-center select-none z-20 ${
+            isOpen
+              ? 'text-slate-600 bg-slate-200/90 hover:bg-slate-300 font-bold shadow-2xs'
+              : isOngoing
+              ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100/90 border border-emerald-300/80 font-black shadow-2xs animate-pulse hover:scale-105'
+              : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100 font-bold'
+          }`}
+          title={isOpen ? 'คลิกเพื่อหุบการ์ดกลับ' : 'คลิกหรือสไลด์การ์ดไปทางซ้ายเพื่อปิดงาน'}
+          aria-label="สไลด์การ์ดเพื่อปิดงาน"
+        >
+          <span className="text-xs sm:text-sm font-black tracking-tighter">
+            {isOpen ? '>>>' : '<<<'}
+          </span>
+        </button>
+      )}
     </div>
   </div>
 );
