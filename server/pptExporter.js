@@ -63,38 +63,65 @@ function escapeXml(unsafe) {
   });
 }
 
-function setCellText(cellXml, text, align = 'ctr') {
-  // Remove existing <a:r> runs
-  let cleaned = cellXml.replace(/<a:r>[\s\S]*?<\/a:r>/g, '');
-  cleaned = cleaned.replace(/algn="[a-z]+"/g, `algn="${align}"`);
-
-  if (!text) {
-    return cleaned;
-  }
-
-  const escapedText = escapeXml(text);
-  const runXml = `<a:r><a:rPr kumimoji="0" lang="th-TH" altLang="th-TH" sz="2000" b="0" i="0" u="none" strike="noStrike" cap="none" normalizeH="0" baseline="0" dirty="0"><a:ln><a:noFill/></a:ln><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:effectLst/><a:latin typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/><a:cs typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/></a:rPr><a:t>${escapedText}</a:t></a:r>`;
-
-  if (cleaned.includes('<a:endParaRPr')) {
-    return cleaned.replace('<a:endParaRPr', `${runXml}<a:endParaRPr`);
-  } else {
-    return cleaned.replace('</a:p>', `${runXml}</a:p>`);
-  }
+function makeTextRun(text) {
+  const escaped = escapeXml(text);
+  return `<a:r><a:rPr kumimoji="0" lang="en-US" altLang="th-TH" sz="2000" b="0" i="0" u="none" strike="noStrike" cap="none" normalizeH="0" baseline="0" dirty="0"><a:ln><a:noFill/></a:ln><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:effectLst/><a:latin typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/><a:cs typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/></a:rPr><a:t>${escaped}</a:t></a:r>`;
 }
 
-function buildRowXml(templateRowXml, orderStr, missionStr, dateStr, isChecked = true) {
-  const cells = templateRowXml.match(/<a:tc.*?<\/a:tc>/gs);
-  if (!cells || cells.length < 6) return templateRowXml;
+function populateSlideXml(slideXmlTemplate, slideMissions, startOrderNum, isFirstSlide = false) {
+  let slideXml = slideXmlTemplate;
+  const tblMatch = slideXml.match(/<a:tbl>(.*?)<\/a:tbl>/s);
+  if (!tblMatch) return slideXml;
 
-  let cell0 = setCellText(cells[0], orderStr, 'ctr');
-  let cell1 = setCellText(cells[1], missionStr, 'l');
-  let cell2 = setCellText(cells[2], dateStr, 'ctr');
-  let cell3 = setCellText(cells[3], isChecked ? '√' : '', 'ctr');
-  let cell4 = setCellText(cells[4], '', 'ctr');
-  let cell5 = setCellText(cells[5], '', 'l');
+  const tableXml = tblMatch[0];
+  const allRows = tableXml.match(/<a:tr.*?<\/a:tr>/gs);
+  if (!allRows || allRows.length < 9) return slideXml;
 
-  const rowContent = `${cell0}${cell1}${cell2}${cell3}${cell4}${cell5}`;
-  return templateRowXml.replace(/<a:tc[\s\S]*?<\/a:tc>/g, () => '').replace('<a:tr ', `<a:tr `).replace('</a:tr>', `${rowContent}</a:tr>`);
+  // Rows 2..8 are the 7 data rows in the template
+  for (let i = 0; i < 7; i++) {
+    const rowIdx = 2 + i;
+    const rowXml = allRows[rowIdx];
+    const cells = rowXml.match(/<a:tc.*?<\/a:tc>/gs);
+    const m = slideMissions[i];
+
+    if (m) {
+      const orderStr = toThaiDigits(startOrderNum + i);
+      const missionText = `${m.title || ''}${
+        m.location && !m.title?.includes(m.location) ? ', ' + m.location : ''
+      }`;
+      const dateText = formatThaiDateRangePpt(m.start_date, m.end_date);
+
+      // Cell 0: ลำดับ
+      cells[0] = cells[0].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun(orderStr));
+      // Cell 1: ภารกิจ
+      cells[1] = cells[1].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun(missionText));
+      // Cell 2: วันที่ปฏิบัติ
+      cells[2] = cells[2].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun(dateText));
+      // Cell 3: เรียบร้อย (√)
+      if (rowIdx === 2 && isFirstSlide) {
+        // Row 2 on first slide already has √ in the template
+      } else {
+        cells[3] = cells[3].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun('√'));
+      }
+    } else {
+      // Empty row
+      if (rowIdx === 2 && isFirstSlide && !slideMissions[0]) {
+        // If first slide has 0 missions, remove existing √ from template
+        const endParaXml = `<a:endParaRPr kumimoji="0" lang="en-US" altLang="th-TH" sz="2000" b="0" i="0" u="none" strike="noStrike" cap="none" normalizeH="0" baseline="0" dirty="0"><a:ln><a:noFill/></a:ln><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:effectLst/><a:latin typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/><a:cs typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/></a:endParaRPr>`;
+        cells[3] = cells[3].replace(/<a:r>[\s\S]*?<\/a:r>/, endParaXml);
+      } else if (rowIdx === 2 && !isFirstSlide) {
+        // Cloned slides start with √ on row 2, remove if no mission in this slot
+        const endParaXml = `<a:endParaRPr kumimoji="0" lang="en-US" altLang="th-TH" sz="2000" b="0" i="0" u="none" strike="noStrike" cap="none" normalizeH="0" baseline="0" dirty="0"><a:ln><a:noFill/></a:ln><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:effectLst/><a:latin typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/><a:cs typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/></a:endParaRPr>`;
+        cells[3] = cells[3].replace(/<a:r>[\s\S]*?<\/a:r>/, endParaXml);
+      }
+    }
+
+    let cIdx = 0;
+    const updatedRow = rowXml.replace(/<a:tc[\s\S]*?<\/a:tc>/g, () => cells[cIdx++]);
+    slideXml = slideXml.replace(rowXml, updatedRow);
+  }
+
+  return slideXml;
 }
 
 /**
@@ -103,7 +130,6 @@ function buildRowXml(templateRowXml, orderStr, missionStr, dateStr, isChecked = 
  * @returns {Promise<Buffer>}
  */
 export async function generatePptxReport(missions = []) {
-  // Try custom path on Desktop first, fallback to project templates
   const desktopPath = 'C:\\Users\\ICTSFC1\\Desktop\\แอพภารกิจ ผสส\\temppt.pptx';
   const fallbackPath = path.join(__dirname, 'templates', 'temppt.pptx');
 
@@ -122,74 +148,54 @@ export async function generatePptxReport(missions = []) {
   // Dynamically find the target slide containing the missions table
   const slideFiles = Object.keys(zip.files).filter(k => k.startsWith('ppt/slides/slide') && k.endsWith('.xml'));
   let targetSlidePath = null;
-  let slideXml = null;
+  let slideXmlTemplate = null;
 
   for (const sPath of slideFiles) {
     const xml = await zip.file(sPath).async('string');
     if (xml.includes('ภารกิจ') && xml.includes('ผลการปฏิบัติงาน')) {
       targetSlidePath = sPath;
-      slideXml = xml;
+      slideXmlTemplate = xml;
       break;
     }
   }
 
-  if (!targetSlidePath || !slideXml) {
+  if (!targetSlidePath || !slideXmlTemplate) {
     throw new Error('ไม่พบสไลด์ที่มีตารางภารกิจในไฟล์เทมเพลต');
   }
 
-  const tblMatch = slideXml.match(/<a:tbl>(.*?)<\/a:tbl>/s);
-  if (!tblMatch) {
-    throw new Error('ไม่พบตารางในสไลด์ที่เลือก');
-  }
+  const s1Rels = await zip.file('ppt/slides/_rels/slide1.xml.rels')?.async('string') ||
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout4.xml"/></Relationships>';
 
-  const tableXml = tblMatch[0];
-  const allRows = tableXml.match(/<a:tr.*?<\/a:tr>/gs);
-  if (!allRows || allRows.length < 3) {
-    throw new Error('โครงสร้างแถวในตารางไม่ถูกต้อง');
-  }
+  const SLOTS_PER_SLIDE = 7;
+  const numSlides = Math.max(1, Math.ceil(missions.length / SLOTS_PER_SLIDE));
 
-  // Row 0 and Row 1 are Header and Subheader
-  const headerRows = allRows.slice(0, 2);
-  // Remaining rows in template (Row 2..8, total 7 rows in new template)
-  const templateDataRows = allRows.slice(2);
-  const rowEvenTemplate = templateDataRows[0]; // Row 2 (ECF7E8)
-  const rowOddTemplate = templateDataRows.length > 1 ? templateDataRows[1] : templateDataRows[0]; // Row 3 (D8EECE)
+  let presXml = await zip.file('ppt/presentation.xml').async('string');
+  let presRels = await zip.file('ppt/_rels/presentation.xml.rels').async('string');
+  let ctXml = await zip.file('[Content_Types].xml').async('string');
 
-  const populatedDataRows = [];
-  const minSlots = templateDataRows.length; // Preserve existing slots (e.g. 7 rows)
-  const totalSlots = Math.max(minSlots, missions.length);
+  let currentOrder = 3; // Order starts at Thai number ๓ (3)
 
-  for (let i = 0; i < totalSlots; i++) {
-    const orderNum = 3 + i; // Start from Thai number ๓ (3)
-    const orderStr = toThaiDigits(orderNum);
-    const mission = missions[i];
+  for (let s = 1; s <= numSlides; s++) {
+    const slideMissions = missions.slice((s - 1) * SLOTS_PER_SLIDE, s * SLOTS_PER_SLIDE);
+    const populatedXml = populateSlideXml(slideXmlTemplate, slideMissions, currentOrder, s === 1);
+    currentOrder += slideMissions.length;
 
-    // Pick template row for correct alternating background
-    const baseTemplate = (i % 2 === 0) ? rowEvenTemplate : rowOddTemplate;
+    const slideFileName = `slide${s}.xml`;
+    zip.file(`ppt/slides/${slideFileName}`, populatedXml);
+    zip.file(`ppt/slides/_rels/${slideFileName}.rels`, s1Rels);
 
-    if (mission) {
-      const missionText = `${mission.title || ''}${
-        mission.location && !mission.title?.includes(mission.location)
-          ? `, ${mission.location}`
-          : ''
-      }`;
-      const dateText = formatThaiDateRangePpt(mission.start_date, mission.end_date);
-      const rowXml = buildRowXml(baseTemplate, orderStr, missionText, dateText, true);
-      populatedDataRows.push(rowXml);
-    } else {
-      // Empty row preserving clean table wireframe
-      const rowXml = buildRowXml(baseTemplate, '', '', '', false);
-      populatedDataRows.push(rowXml);
+    if (s > 1) {
+      const relId = `rIdSlide${s}`;
+      const sldId = 4840 + s;
+      presRels = presRels.replace('</Relationships>', `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/${slideFileName}"/></Relationships>`);
+      presXml = presXml.replace('</p:sldIdLst>', `<p:sldId id="${sldId}" r:id="${relId}"/></p:sldIdLst>`);
+      ctXml = ctXml.replace('</Types>', `<Override PartName="/ppt/slides/${slideFileName}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);
     }
   }
 
-  // Assemble full table rows
-  const newRowsXml = [...headerRows, ...populatedDataRows].join('');
-  const tblPrAndGrid = tableXml.match(/^(<a:tbl>.*?<a:tblGrid>.*?<\/a:tblGrid>)/s)?.[1] || '<a:tbl>';
-  const updatedTableXml = `${tblPrAndGrid}${newRowsXml}</a:tbl>`;
-
-  slideXml = slideXml.replace(/<a:tbl>.*?<\/a:tbl>/s, updatedTableXml);
-  zip.file(targetSlidePath, slideXml);
+  zip.file('ppt/presentation.xml', presXml);
+  zip.file('ppt/_rels/presentation.xml.rels', presRels);
+  zip.file('[Content_Types].xml', ctXml);
 
   const outputBuffer = await zip.generateAsync({
     type: 'nodebuffer',
