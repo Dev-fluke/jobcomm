@@ -65,9 +65,7 @@ function escapeXml(unsafe) {
 
 function setCellText(cellXml, text, align = 'ctr') {
   // Remove existing <a:r> runs
-  let cleaned = cellXml.replace(/<a:r>.*?<\/a:r>/gs, '');
-
-  // Ensure alignment is set in pPr
+  let cleaned = cellXml.replace(/<a:r>[\s\S]*?<\/a:r>/g, '');
   cleaned = cleaned.replace(/algn="[a-z]+"/g, `algn="${align}"`);
 
   if (!text) {
@@ -77,10 +75,14 @@ function setCellText(cellXml, text, align = 'ctr') {
   const escapedText = escapeXml(text);
   const runXml = `<a:r><a:rPr kumimoji="0" lang="th-TH" altLang="th-TH" sz="2000" b="0" i="0" u="none" strike="noStrike" cap="none" normalizeH="0" baseline="0" dirty="0"><a:ln><a:noFill/></a:ln><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:effectLst/><a:latin typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/><a:cs typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/></a:rPr><a:t>${escapedText}</a:t></a:r>`;
 
-  return cleaned.replace('<a:endParaRPr', `${runXml}<a:endParaRPr`);
+  if (cleaned.includes('<a:endParaRPr')) {
+    return cleaned.replace('<a:endParaRPr', `${runXml}<a:endParaRPr`);
+  } else {
+    return cleaned.replace('</a:p>', `${runXml}</a:p>`);
+  }
 }
 
-function buildRowXml(templateRowXml, orderStr, missionStr, dateStr, isChecked = true, isAltBg = false) {
+function buildRowXml(templateRowXml, orderStr, missionStr, dateStr, isChecked = true) {
   const cells = templateRowXml.match(/<a:tc.*?<\/a:tc>/gs);
   if (!cells || cells.length < 6) return templateRowXml;
 
@@ -91,21 +93,8 @@ function buildRowXml(templateRowXml, orderStr, missionStr, dateStr, isChecked = 
   let cell4 = setCellText(cells[4], '', 'ctr');
   let cell5 = setCellText(cells[5], '', 'l');
 
-  const bgHex = isAltBg ? 'ECF7E8' : 'FFFFFF';
-  const applyBg = (cXml) => cXml.replace(/<a:srgbClr val="[A-Fa-f0-9]{6}"\/>/g, `<a:srgbClr val="${bgHex}"/>`);
-
-  cell0 = applyBg(cell0);
-  cell1 = applyBg(cell1);
-  cell2 = applyBg(cell2);
-  cell3 = applyBg(cell3);
-  cell4 = applyBg(cell4);
-  cell5 = applyBg(cell5);
-
   const rowContent = `${cell0}${cell1}${cell2}${cell3}${cell4}${cell5}`;
-  return templateRowXml.replace(/<a:tc.*?<\/a:tc>/gs, () => {
-    // We will replace all tc in one go
-    return '';
-  }).replace('<a:tr ', `<a:tr `).replace('</a:tr>', `${rowContent}</a:tr>`);
+  return templateRowXml.replace(/<a:tc[\s\S]*?<\/a:tc>/g, () => '').replace('<a:tr ', `<a:tr `).replace('</a:tr>', `${rowContent}</a:tr>`);
 }
 
 /**
@@ -130,42 +119,53 @@ export async function generatePptxReport(missions = []) {
   const templateData = fs.readFileSync(templatePath);
   const zip = await JSZip.loadAsync(templateData);
 
-  const slideFile = zip.file('ppt/slides/slide10.xml');
-  if (!slideFile) {
-    throw new Error('ไม่พบสไลด์ที่ 10 ในไฟล์เทมเพลต');
+  // Dynamically find the target slide containing the missions table
+  const slideFiles = Object.keys(zip.files).filter(k => k.startsWith('ppt/slides/slide') && k.endsWith('.xml'));
+  let targetSlidePath = null;
+  let slideXml = null;
+
+  for (const sPath of slideFiles) {
+    const xml = await zip.file(sPath).async('string');
+    if (xml.includes('ภารกิจ') && xml.includes('ผลการปฏิบัติงาน')) {
+      targetSlidePath = sPath;
+      slideXml = xml;
+      break;
+    }
   }
 
-  let slideXml = await slideFile.async('string');
+  if (!targetSlidePath || !slideXml) {
+    throw new Error('ไม่พบสไลด์ที่มีตารางภารกิจในไฟล์เทมเพลต');
+  }
 
   const tblMatch = slideXml.match(/<a:tbl>(.*?)<\/a:tbl>/s);
   if (!tblMatch) {
-    throw new Error('ไม่พบตารางในสไลด์ที่ 10');
+    throw new Error('ไม่พบตารางในสไลด์ที่เลือก');
   }
 
   const tableXml = tblMatch[0];
   const allRows = tableXml.match(/<a:tr.*?<\/a:tr>/gs);
-  if (!allRows || allRows.length < 4) {
+  if (!allRows || allRows.length < 3) {
     throw new Error('โครงสร้างแถวในตารางไม่ถูกต้อง');
   }
 
-  // Row 0: Main Header
-  // Row 1: Sub Header
-  // Row 2: Fixed Row ๑
-  // Row 3: Fixed Row ๒
-  // Row 4..8: Empty template rows
-  const headerAndFixedRows = allRows.slice(0, 4);
-  const emptyTemplateRow = allRows[4];
+  // Row 0 and Row 1 are Header and Subheader
+  const headerRows = allRows.slice(0, 2);
+  // Remaining rows in template (Row 2..8, total 7 rows in new template)
+  const templateDataRows = allRows.slice(2);
+  const rowEvenTemplate = templateDataRows[0]; // Row 2 (ECF7E8)
+  const rowOddTemplate = templateDataRows.length > 1 ? templateDataRows[1] : templateDataRows[0]; // Row 3 (D8EECE)
 
   const populatedDataRows = [];
-
-  // Determine total rows to output (at least 5 rows to keep wireframe table intact)
-  const totalSlots = Math.max(5, missions.length);
+  const minSlots = templateDataRows.length; // Preserve existing slots (e.g. 7 rows)
+  const totalSlots = Math.max(minSlots, missions.length);
 
   for (let i = 0; i < totalSlots; i++) {
-    const orderNum = 3 + i;
+    const orderNum = 3 + i; // Start from Thai number ๓ (3)
     const orderStr = toThaiDigits(orderNum);
     const mission = missions[i];
-    const isAltBg = (i % 2 === 1); // alternate row colors
+
+    // Pick template row for correct alternating background
+    const baseTemplate = (i % 2 === 0) ? rowEvenTemplate : rowOddTemplate;
 
     if (mission) {
       const missionText = `${mission.title || ''}${
@@ -174,25 +174,22 @@ export async function generatePptxReport(missions = []) {
           : ''
       }`;
       const dateText = formatThaiDateRangePpt(mission.start_date, mission.end_date);
-      const rowXml = buildRowXml(emptyTemplateRow, orderStr, missionText, dateText, true, isAltBg);
+      const rowXml = buildRowXml(baseTemplate, orderStr, missionText, dateText, true);
       populatedDataRows.push(rowXml);
     } else {
-      // Empty row with no text, preserving empty table slots
-      const rowXml = buildRowXml(emptyTemplateRow, '', '', '', false, isAltBg);
+      // Empty row preserving clean table wireframe
+      const rowXml = buildRowXml(baseTemplate, '', '', '', false);
       populatedDataRows.push(rowXml);
     }
   }
 
   // Assemble full table rows
-  const newRowsXml = [...headerAndFixedRows, ...populatedDataRows].join('');
-
-  // Replace rows in <a:tbl>
+  const newRowsXml = [...headerRows, ...populatedDataRows].join('');
   const tblPrAndGrid = tableXml.match(/^(<a:tbl>.*?<a:tblGrid>.*?<\/a:tblGrid>)/s)?.[1] || '<a:tbl>';
   const updatedTableXml = `${tblPrAndGrid}${newRowsXml}</a:tbl>`;
 
   slideXml = slideXml.replace(/<a:tbl>.*?<\/a:tbl>/s, updatedTableXml);
-
-  zip.file('ppt/slides/slide10.xml', slideXml);
+  zip.file(targetSlidePath, slideXml);
 
   const outputBuffer = await zip.generateAsync({
     type: 'nodebuffer',
