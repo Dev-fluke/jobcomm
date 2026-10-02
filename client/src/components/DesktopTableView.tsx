@@ -23,7 +23,8 @@ import {
   Copy,
   Check,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Presentation
 } from 'lucide-react';
 
 interface DesktopTableViewProps {
@@ -94,6 +95,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
   const [filterStatus, setFilterStatus] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [isExportingPPT, setIsExportingPPT] = useState(false);
 
   // Monthly Bulk Delete Modal state
   const [isDeleteMonthModalOpen, setIsDeleteMonthModalOpen] = useState(false);
@@ -150,6 +152,43 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
     link.download = `รายงานภารกิจ_แผนกสื่อสาร_อย_${dateSuffix}.csv`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Export to PowerPoint (.pptx)
+  const handleExportPPT = async () => {
+    try {
+      setIsExportingPPT(true);
+      const res = await fetch('/api/export-pptx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missions: filtered })
+      });
+
+      if (!res.ok) {
+        let errMessage = 'ไม่สามารถสร้างไฟล์ PowerPoint ได้';
+        try {
+          const errData = await res.json();
+          if (errData.error) errMessage = errData.error;
+        } catch {}
+        throw new Error(errMessage);
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const dateSuffix = startDate && endDate ? `${startDate}_ถึง_${endDate}` : startDate ? `ตั้งแต่_${startDate}` : endDate ? `ถึง_${endDate}` : todayDateStr;
+      link.download = `รายงานภารกิจ_แผนกสื่อสาร_อย_${dateSuffix}.pptx`;
+      link.click();
+      URL.revokeObjectURL(url);
+      onToast?.('ส่งออกรายงาน PowerPoint เรียบร้อยแล้ว 📊', 'success');
+    } catch (err: any) {
+      console.error('Export PPT error:', err);
+      alert(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ PowerPoint');
+      onToast?.(err.message || 'เกิดข้อผิดพลาดในการส่งออกไฟล์ PPT', 'error');
+    } finally {
+      setIsExportingPPT(false);
+    }
   };
 
   // Count missions in selected month
@@ -218,11 +257,22 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
           {/* Export CSV / Excel Button */}
           <button
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 active:bg-emerald-900 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
             title="ดาวน์โหลดข้อมูลเป็นไฟล์ Excel/CSV"
           >
             <Download className="w-4 h-4" />
             <span>ส่งออก Excel/CSV</span>
+          </button>
+
+          {/* Export PowerPoint (.pptx) Button */}
+          <button
+            onClick={handleExportPPT}
+            disabled={isExportingPPT}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-600 hover:bg-orange-700 active:bg-orange-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            title="ส่งออกรายงานในรูปแบบ PowerPoint (.pptx)"
+          >
+            <Presentation className="w-4 h-4" />
+            <span>{isExportingPPT ? 'กำลังสร้าง PPT...' : 'ส่งออก PPT'}</span>
           </button>
 
           {/* Delete Missions by Month Button (Secured with password: 26366) */}

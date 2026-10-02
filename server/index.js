@@ -22,6 +22,7 @@ import {
   updatePreset,
   deletePreset
 } from './db.js';
+import { generatePptxReport } from './pptExporter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -416,6 +417,23 @@ app.get('/api/stats', async (req, res) => {
     const stats = await getStats(todayStr);
     res.json({ success: true, data: stats });
   } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST export PowerPoint (.pptx) report from template
+app.post('/api/export-pptx', async (req, res) => {
+  try {
+    const { missions } = req.body;
+    const missionList = Array.isArray(missions) ? missions : [];
+    const buffer = await generatePptxReport(missionList);
+
+    const filename = `JobComm_Report_${Date.now()}.pptx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Export PPT error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
