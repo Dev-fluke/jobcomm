@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Mission } from '../types';
 import { MissionCard } from './MissionCard';
-import { formatThaiDateFull, formatThaiDateShort, sortMissionsForDisplay } from '../utils/thaiDate';
+import { formatThaiDateFull, formatThaiDateShort, sortMissionsForDisplay, getAutomaticMissionStatus } from '../utils/thaiDate';
 import {
   Tv,
   Maximize2,
@@ -12,7 +12,9 @@ import {
   Shield,
   Volume2,
   VolumeX,
-  Sparkles
+  Sparkles,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface TvDisplayViewProps {
@@ -31,6 +33,7 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
   const [themeMode, setThemeMode] = useState<'military-dark' | 'clean-light'>('military-dark');
+  const [hideCompleted, setHideCompleted] = useState<boolean>(false);
 
   // Toggle browser fullscreen
   const toggleFullscreen = () => {
@@ -59,7 +62,13 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
   const seconds = String(now.getSeconds()).padStart(2, '0');
   const fullThaiDate = formatThaiDateFull(todayDateStr);
 
-  const activeMissions = missions.filter((m) => m.status !== 'cancelled');
+  const activeMissions = missions.filter((m) => {
+    if (m.status === 'cancelled') return false;
+    if (hideCompleted && getAutomaticMissionStatus(m, now) === 'completed') {
+      return false;
+    }
+    return true;
+  });
   const sortedTvMissions = sortMissionsForDisplay(activeMissions, now);
 
   return (
@@ -130,6 +139,29 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
                 title="เปลี่ยนธีมหน้าจอทีวี"
               >
                 {themeMode === 'military-dark' ? 'ธีมสว่าง' : 'ธีมมืด'}
+              </button>
+
+              {/* ปุ่มเปิด-ปิด เพื่อซ่อนภารกิจที่เสร็จสิ้นแล้ว */}
+              <button
+                onClick={() => setHideCompleted(!hideCompleted)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                  hideCompleted
+                    ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-400 font-bold shadow-xs'
+                    : 'bg-blue-800/60 hover:bg-blue-700 text-blue-100 border border-blue-700'
+                }`}
+                title={hideCompleted ? 'กำลังซ่อนภารกิจที่เสร็จสิ้นแล้ว (คลิกเพื่อแสดงทั้งหมด)' : 'คลิกเพื่อซ่อนภารกิจที่เสร็จสิ้นแล้ว'}
+              >
+                {hideCompleted ? (
+                  <>
+                    <EyeOff className="w-3.5 h-3.5 text-slate-950 shrink-0" />
+                    <span>ซ่อนที่เสร็จแล้ว : เปิด</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-3.5 h-3.5 text-blue-200 shrink-0" />
+                    <span>ซ่อนที่เสร็จแล้ว : ปิด</span>
+                  </>
+                )}
               </button>
 
               <button
@@ -203,7 +235,7 @@ export const TvDisplayView: React.FC<TvDisplayViewProps> = ({
           <span>ระบบสื่อสารหลักและสำรอง พร้อมปฏิบัติงาน 24 ชั่วโมง</span>
         </div>
         <div className="font-mono text-xs opacity-80">
-          ภารกิจทั้งหมดวันนี้: {sortedTvMissions.length} รายการ
+          ภารกิจที่แสดง: {sortedTvMissions.length} รายการ {hideCompleted && '(ซ่อนที่เสร็จสิ้นแล้ว)'}
         </div>
       </footer>
     </div>
