@@ -25,7 +25,7 @@ export const TodayMissionsView: React.FC<TodayMissionsViewProps> = ({
   onCompleteEarly,
   onToast
 }) => {
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('current');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Calculate automatic status for each mission based on current time
@@ -36,8 +36,10 @@ export const TodayMissionsView: React.FC<TodayMissionsViewProps> = ({
 
   // Filter missions
   const filteredMissions = missionsWithAutoStatus.filter((m) => {
-    // Status filter
-    if (filterStatus !== 'all' && m.autoStatus !== filterStatus) {
+    // Status filter: 'current' hides completed missions
+    if (filterStatus === 'current') {
+      if (m.autoStatus === 'completed') return false;
+    } else if (filterStatus !== 'all' && m.autoStatus !== filterStatus) {
       return false;
     }
     // Search filter
@@ -113,10 +115,20 @@ export const TodayMissionsView: React.FC<TodayMissionsViewProps> = ({
         {/* Filter buttons based on automatic status */}
         <div className="flex items-center gap-1 self-start sm:self-auto overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
           <button
+            onClick={() => setFilterStatus('current')}
+            className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors shrink-0 ${
+              filterStatus === 'current'
+                ? 'bg-blue-800 text-white shadow-xs'
+                : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            ปัจจุบัน
+          </button>
+          <button
             onClick={() => setFilterStatus('all')}
             className={`px-3 py-1 rounded-md text-xs font-medium transition-colors shrink-0 ${
               filterStatus === 'all'
-                ? 'bg-blue-800 text-white'
+                ? 'bg-blue-800 text-white shadow-xs'
                 : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
             }`}
           >
@@ -173,12 +185,16 @@ export const TodayMissionsView: React.FC<TodayMissionsViewProps> = ({
           <div className="text-center py-12 px-4 bg-white border-2 border-dashed border-slate-300 rounded-lg">
             <Clock className="w-12 h-12 mx-auto text-slate-400 mb-3" />
             <h3 className="text-base font-bold text-slate-700">
-              {searchTerm || filterStatus !== 'all'
+              {searchTerm || (filterStatus !== 'all' && filterStatus !== 'current')
                 ? 'ไม่พบภารกิจที่ตรงกับเงื่อนไขการค้นหา'
+                : filterStatus === 'current'
+                ? 'ไม่มีภารกิจค้างอยู่ (ภารกิจวันนี้เสร็จสิ้นทั้งหมดแล้ว)'
                 : 'ไม่มีภารกิจที่บันทึกไว้สำหรับวันนี้'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              สามารถกดปุ่ม "เพิ่มภารกิจใหม่" เพื่อบันทึกข้อมูลภารกิจของแผนกสื่อสาร
+              {filterStatus === 'current' && completedCount > 0
+                ? 'สามารถกดปุ่ม "ทั้งหมด" หรือ "เสร็จสิ้น" เพื่อดูภารกิจที่ปิดงานแล้วได้'
+                : 'สามารถกดปุ่ม "เพิ่มภารกิจใหม่" เพื่อบันทึกข้อมูลภารกิจของแผนกสื่อสาร'}
             </p>
             <button
               onClick={onAddNew}
