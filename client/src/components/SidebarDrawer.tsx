@@ -126,8 +126,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           </div>
 
           {/* Drawer Footer */}
-          <div className="p-4 bg-slate-50 border-t border-slate-200 text-xs text-slate-500 text-center">
-          </div>
+         
         </div>
       </div>
     </div>

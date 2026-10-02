@@ -251,8 +251,8 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           <p className="text-slate-700 font-normal leading-relaxed whitespace-pre-line flex-1">
             {mission.description?.trim()
               ? mission.description
-              : mission.attachment_name
-              ? `แนบเอกสาร: ${mission.attachment_name}`
+              : mission.attachment_url
+              ? 'มีเอกสารแนบ'
               : '-'}
           </p>
         </div>
@@ -271,33 +271,17 @@ export const MissionCard: React.FC<MissionCardProps> = ({
         {/* Attachment (PDF or Image) */}
         {mission.attachment_url && (
           <div className="pt-2 border-t border-slate-100 flex items-center gap-2 mt-auto">
-            {mission.attachment_type?.includes('image') ? (
-              <a
-                href={mission.attachment_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 p-1.5 bg-slate-50 hover:bg-blue-50 border border-slate-300 rounded-lg text-xs font-semibold text-blue-800 transition-colors group"
-                title="คลิกเพื่อดูรูปภาพขนาดเต็ม"
-              >
-                <img
-                  src={mission.attachment_url}
-                  alt={mission.attachment_name || 'ภาพแนบ'}
-                  className="w-8 h-8 rounded object-cover border border-slate-300 group-hover:scale-105 transition-transform"
-                />
-                <span className="truncate max-w-[200px]">{mission.attachment_name || 'ดูรูปภาพแนบ'} ↗</span>
-              </a>
-            ) : (
-              <a
-                href={mission.attachment_url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-800 rounded-lg text-xs font-semibold transition-colors shadow-2xs"
-                title="คลิกเพื่อเปิดเอกสาร PDF"
-              >
-                <FileText className="w-4 h-4 text-red-700" />
-                <span className="truncate max-w-[220px]">{mission.attachment_name || 'เปิดดูเอกสาร PDF'} ↗</span>
-              </a>
-            )}
+            <a
+              href={mission.attachment_url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-300 text-blue-900 rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-2xs hover:shadow-xs group"
+              title="คลิกเพื่อเปิดดูรายละเอียดไฟล์แนบ"
+            >
+              <FileText className="w-4 h-4 text-blue-700 shrink-0 group-hover:scale-110 transition-transform" />
+              <span>รายละเอียด</span>
+              <span className="text-blue-500 text-xs">↗</span>
+            </a>
           </div>
         )}
       </div>

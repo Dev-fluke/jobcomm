@@ -26,7 +26,7 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
   onToast
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [dateFilterMode, setDateFilterMode] = useState<'upcoming' | 'past' | 'specific' | 'all'>('upcoming');
+  const [dateFilterMode, setDateFilterMode] = useState<'upcoming' | 'specific' | 'all'>('upcoming');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Group missions or filter
@@ -38,9 +38,6 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
       }
       if (dateFilterMode === 'upcoming') {
         return m.start_date > todayDateStr;
-      }
-      if (dateFilterMode === 'past') {
-        return m.end_date < todayDateStr;
       }
       // 'all'
       return true;
@@ -85,7 +82,7 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
               }`}
             >
-              ภารกิจล่วงหน้า (Upcoming)
+              ภารกิจล่วงหน้า
             </button>
             <button
               onClick={() => setDateFilterMode('specific')}
@@ -98,16 +95,6 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
               เลือกวันที่เจาะจง
             </button>
             <button
-              onClick={() => setDateFilterMode('past')}
-              className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all ${
-                dateFilterMode === 'past'
-                  ? 'bg-blue-800 text-white'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-              }`}
-            >
-              ประวัติภารกิจที่ผ่านมา
-            </button>
-            <button
               onClick={() => setDateFilterMode('all')}
               className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all ${
                 dateFilterMode === 'all'
@@ -118,14 +105,6 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
               ทั้งหมด
             </button>
           </div>
-
-          <button
-            onClick={() => onAddNewForDate(selectedDate || todayDateStr)}
-            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-md transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>เพิ่มภารกิจล่วงหน้า</span>
-          </button>
         </div>
 
         {/* Date picker if in 'specific' mode */}
@@ -167,13 +146,13 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
         {groupedByDate.length > 0 ? (
           groupedByDate.map(([dateKey, items]) => (
             <div key={dateKey} className="space-y-3">
-              {/* Date Header Badge */}
-              <div className="sticky top-20 z-10 bg-slate-200/90 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-slate-300 flex items-center justify-between shadow-xs">
-                <span className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-blue-900" />
+              {/* Date Header Badge - Deep Navy Blue with high-contrast white text */}
+              <div className="sticky top-20 z-10 bg-blue-900/95 backdrop-blur-md px-3.5 py-2 rounded-lg border border-blue-950 flex items-center justify-between shadow-md">
+                <span className="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-200 shrink-0" />
                   ภารกิจประจำวันที่ {formatThaiDateMedium(dateKey)}
                 </span>
-                <span className="text-xs font-medium text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-300">
+                <span className="text-xs font-bold text-blue-950 bg-white px-2.5 py-0.5 rounded-full shadow-xs">
                   {items.length} ภารกิจ
                 </span>
               </div>
@@ -201,7 +180,7 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
               ไม่พบภารกิจตามช่วงวันที่เลือก
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              สามารถกดปุ่ม "เพิ่มภารกิจล่วงหน้า" เพื่อบันทึกกำหนดการงานในอนาคตได้ทันที
+              สามารถตรวจสอบช่วงเวลาอื่นๆ หรือเพิ่มภารกิจใหม่ได้จากเมนู "เพิ่มภารกิจใหม่"
             </p>
           </div>
         )}

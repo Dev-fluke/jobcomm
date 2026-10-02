@@ -47,10 +47,20 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    // Fix UTF-8 encoding for Thai filenames in multer
+    let originalName = file.originalname;
+    try {
+      const decoded = Buffer.from(file.originalname, 'latin1').toString('utf8');
+      if (decoded && !decoded.includes('')) {
+        originalName = decoded;
+        file.originalname = decoded;
+      }
+    } catch {}
+
+    const ext = path.extname(originalName);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e6);
-    // Sanitize original name
-    const baseName = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_\u0E00-\u0E7F]/g, '_');
+    // Sanitize name for filesystem
+    const baseName = path.basename(originalName, ext).replace(/[^a-zA-Z0-9_\u0E00-\u0E7F]/g, '_');
     cb(null, `${uniqueSuffix}-${baseName}${ext}`);
   }
 });

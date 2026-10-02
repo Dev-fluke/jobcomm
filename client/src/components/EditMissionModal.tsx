@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Mission } from '../types';
-import { X, Save } from 'lucide-react';
+import { X, Save, FileText } from 'lucide-react';
 
 interface EditMissionModalProps {
   mission: Mission | null;
@@ -226,14 +226,16 @@ export const EditMissionModal: React.FC<EditMissionModalProps> = ({
               ไฟล์แนบ (PDF หรือ รูปภาพ):
             </label>
             {attachmentUrl ? (
-              <div className="flex items-center justify-between p-2 bg-slate-50 border border-slate-300 rounded-md text-xs">
+              <div className="flex items-center justify-between p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-xs">
                 <a
                   href={attachmentUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-blue-700 font-semibold truncate hover:underline"
+                  className="inline-flex items-center gap-1.5 text-blue-800 font-semibold truncate hover:underline"
+                  title="คลิกเพื่อเปิดดูรายละเอียดไฟล์แนบ"
                 >
-                  {attachmentName || 'ดูไฟล์แนบ'} ↗
+                  <FileText className="w-4 h-4 text-blue-700 shrink-0" />
+                  <span>รายละเอียด</span> ↗
                 </a>
                 <button
                   type="button"

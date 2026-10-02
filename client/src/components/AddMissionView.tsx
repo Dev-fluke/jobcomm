@@ -840,8 +840,9 @@ export const AddMissionView: React.FC<AddMissionViewProps> = ({
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">
-                      {attachment.name}
+                    <p className="text-sm font-semibold text-slate-900 truncate flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-blue-700 shrink-0" />
+                      <span>รายละเอียด</span>
                     </p>
                     <p className="text-xs text-slate-500">
                       {attachment.type.includes('pdf') ? 'เอกสาร PDF' : 'ไฟล์รูปภาพ'}
@@ -853,7 +854,7 @@ export const AddMissionView: React.FC<AddMissionViewProps> = ({
                       rel="noreferrer"
                       className="text-xs text-blue-700 hover:underline font-medium"
                     >
-                      เปิดดูไฟล์แนบ ↗
+                      เปิดดูรายละเอียด ↗
                     </a>
                   </div>
                 </div>

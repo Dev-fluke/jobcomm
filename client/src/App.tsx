@@ -359,11 +359,8 @@ export function App() {
 
       {/* Footer for Mobile / Desktop */}
       <footer className="bg-slate-200/80 border-t border-slate-300 py-3 text-center text-xs text-slate-600 print:hidden">
-        <p className="font-semibold text-slate-700">
-          ระบบบันทึกและติดตามภารกิจ (JobComm) • แผนกสื่อสาร หน่วยบัญชาการอากาศโยธิน
-        </p>
         <p className="text-[11px] text-slate-500 mt-0.5">
-          พัฒนาโดยนายทหารเทคโนโลยีสารสนเทศและการสื่อสาร อย. โทร.2-6366 • รองรับ โทรศัพท์มือถือ / จอทีวี / จอคอมพิวเตอร์
+          พัฒนาโดย นทสส.อย. โทร.2-6366 • รองรับ โทรศัพท์มือถือ / จอทีวี / จอคอมพิวเตอร์
         </p>
       </footer>
     </div>

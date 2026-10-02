@@ -47,6 +47,8 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   // Monthly Bulk Delete Modal state
   const [isDeleteMonthModalOpen, setIsDeleteMonthModalOpen] = useState(false);
@@ -56,10 +58,12 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
   const [deleteSuccess, setDeleteSuccess] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Filtered missions for table display
+  // Filtered missions for table display (Support Category, Status, Date Range, Search)
   const filtered = missions.filter((m) => {
     if (filterCategory !== 'all' && m.category !== filterCategory) return false;
     if (filterStatus !== 'all' && m.status !== filterStatus) return false;
+    if (startDate && m.end_date < startDate) return false;
+    if (endDate && m.start_date > endDate) return false;
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       return (
@@ -97,7 +101,8 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `รายงานภารกิจ_แผนกสื่อสาร_อย_${todayDateStr}.csv`;
+    const dateSuffix = startDate && endDate ? `${startDate}_ถึง_${endDate}` : startDate ? `ตั้งแต่_${startDate}` : endDate ? `ถึง_${endDate}` : todayDateStr;
+    link.download = `รายงานภารกิจ_แผนกสื่อสาร_อย_${dateSuffix}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -193,23 +198,59 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between print:hidden">
-        <div className="relative w-full sm:w-80">
+      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between print:hidden bg-white p-3.5 rounded-xl border border-slate-300 shadow-xs">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="ค้นหาตามชื่อ, สถานที่, หรือผู้รับผิดชอบ..."
-            className="w-full pl-9 pr-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600"
+            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-blue-600 focus:bg-white"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        {/* Date Range Selector: เลือกวันที่ ถึง วันที่นี้ */}
+        <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1">
+          <Calendar className="w-4 h-4 text-blue-700 shrink-0" />
+          <span className="text-xs font-semibold text-slate-600">วันที่:</span>
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="text-xs bg-white border border-slate-300 rounded px-2 py-0.5 text-slate-800 font-medium focus:outline-none focus:border-blue-600"
+            title="เลือกวันที่เริ่มต้น"
+          />
+          <span className="text-xs font-semibold text-slate-500">ถึง</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="text-xs bg-white border border-slate-300 rounded px-2 py-0.5 text-slate-800 font-medium focus:outline-none focus:border-blue-600"
+            title="เลือกวันที่สิ้นสุด"
+          />
+          {(startDate || endDate) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+              }}
+              className="text-slate-400 hover:text-red-600 p-0.5 rounded transition-colors"
+              title="ล้างการเลือกวันที่"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Category & Status Dropdowns */}
+        <div className="flex items-center gap-2">
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:border-blue-600"
+            className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:border-blue-600"
           >
             <option value="all">หมวดหมู่ทั้งหมด</option>
             <option value="ประชุม">ประชุม</option>
@@ -223,7 +264,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="text-xs bg-white border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:border-blue-600"
+            className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:border-blue-600"
           >
             <option value="all">สถานะทั้งหมด</option>
             <option value="pending">รอดำเนินการ</option>
@@ -290,11 +331,12 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
                             href={m.attachment_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-blue-700 font-semibold hover:underline"
-                            title={m.attachment_name || 'เปิดดูไฟล์แนบ'}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 rounded text-xs font-semibold hover:underline"
+                            title="คลิกเพื่อเปิดดูรายละเอียดไฟล์แนบ"
                           >
-                            <FileText className="w-3.5 h-3.5 text-blue-600" />
-                            <span>ดูไฟล์</span>
+                            <FileText className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                            <span>รายละเอียด</span>
+                            <span className="text-blue-500 text-2xs">↗</span>
                           </a>
                         ) : (
                           <span className="text-slate-400 text-xs">-</span>
