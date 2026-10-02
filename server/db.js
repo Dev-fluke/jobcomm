@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
@@ -13,6 +14,43 @@ export const isSupabase = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
 export let supabase = null;
 let db = null;
+
+// Helper function to extract storage file path from URL
+export function extractStoragePath(url) {
+  if (!url) return null;
+  const match = url.match(/\/attachments\/([^?#]+)/);
+  if (match) return decodeURIComponent(match[1]);
+  return null;
+}
+
+// Helper function to remove attachment file from Supabase Storage or local disk
+export async function removeAttachment(url) {
+  if (!url) return;
+  try {
+    if (isSupabase && supabase) {
+      const storagePath = extractStoragePath(url);
+      if (storagePath) {
+        const { error } = await supabase.storage.from('attachments').remove([storagePath]);
+        if (error) {
+          console.error(`Failed to remove file from Supabase storage: ${storagePath}`, error);
+        } else {
+          console.log(`🗑️ Successfully deleted from Supabase storage: ${storagePath}`);
+        }
+      }
+    } else {
+      const match = url.match(/\/uploads\/([^?#]+)/);
+      if (match) {
+        const localPath = path.join(__dirname, 'uploads', decodeURIComponent(match[1]));
+        if (fs.existsSync(localPath)) {
+          fs.unlinkSync(localPath);
+          console.log(`🗑️ Successfully deleted local file: ${localPath}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error removing attachment file:', err);
+  }
+}
 
 if (isSupabase) {
   console.log('⚡ Connected to Supabase Cloud Database:', SUPABASE_URL);
@@ -362,6 +400,12 @@ export async function createMission(data) {
 }
 
 export async function updateMission(id, data) {
+  const existing = await getMissionById(id);
+  if (existing && existing.attachment_url && data.attachment_url !== undefined && data.attachment_url !== existing.attachment_url) {
+    // Old attachment changed or removed -> delete previous file
+    await removeAttachment(existing.attachment_url);
+  }
+
   if (isSupabase) {
     const payload = {
       title: data.title,
@@ -446,22 +490,46 @@ export async function updateMissionStatus(id, status) {
 }
 
 export async function deleteMission(id) {
+  const mission = await getMissionById(id);
+  if (mission && mission.attachment_url) {
+    await removeAttachment(mission.attachment_url);
+  }
+
   if (isSupabase) {
     const { data, error } = await supabase.from('missions').delete().eq('id', id).select().maybeSingle();
     if (error) throw error;
-    return data;
+    return data || mission;
   }
 
-  const mission = getMissionById(id);
   db.prepare('DELETE FROM missions WHERE id = ?').run(id);
   return mission;
 }
 
 export async function deleteMissionsByMonth(monthStr) {
   if (isSupabase) {
+    const { data: missionsToDelete } = await supabase
+      .from('missions')
+      .select('attachment_url')
+      .like('start_date', `${monthStr}%`);
+
+    if (missionsToDelete && missionsToDelete.length > 0) {
+      for (const m of missionsToDelete) {
+        if (m.attachment_url) {
+          await removeAttachment(m.attachment_url);
+        }
+      }
+    }
+
     const { data, error } = await supabase.from('missions').delete().like('start_date', `${monthStr}%`).select();
     if (error) throw error;
     return { deletedCount: data ? data.length : 0 };
+  }
+
+  const missions = db.prepare("SELECT attachment_url FROM missions WHERE start_date LIKE ?").all(`${monthStr}%`);
+  for (const m of missions) {
+    if (m.attachment_url) {
+      await removeAttachment(m.attachment_url);
+    }
   }
 
   const countBefore = db.prepare("SELECT COUNT(*) as c FROM missions WHERE start_date LIKE ?").get(`${monthStr}%`).c;
