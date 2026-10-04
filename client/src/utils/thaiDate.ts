@@ -51,7 +51,7 @@ export function formatThaiDateWithDay(dateStr: string | Date): string {
   const month = THAI_MONTHS_SHORT[d.getMonth()];
   const thaiYearShort = String((d.getFullYear() + 543) % 100);
 
-  return `${dayName} ${day} ${month}${thaiYearShort}`;
+  return `${dayName}ที่ ${day} ${month}${thaiYearShort}`;
 }
 
 /**

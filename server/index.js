@@ -462,7 +462,7 @@ function formatThaiDateWithDay(dateStr) {
   const month = THAI_MONTHS_SHORT[d.getMonth()];
   const thaiYearShort = String((d.getFullYear() + 543) % 100);
 
-  return `${dayName} ${day} ${month}${thaiYearShort}`;
+  return `${dayName}ที่ ${day} ${month}${thaiYearShort}`;
 }
 
 function cleanTime(t) {
@@ -618,7 +618,7 @@ function buildDailyLineFlexMessage(dateStr, missions) {
             },
             {
               type: 'text',
-              text: `ภารกิจ${dateFormatted}`,
+              text: dateFormatted,
               color: '#FFFFFF',
               size: 'md',
               weight: 'bold',
@@ -788,7 +788,7 @@ function buildDailyLineFlexMessage(dateStr, missions) {
           },
           {
             type: 'text',
-            text: `ภารกิจ${dateFormatted} ครับ`,
+            text: dateFormatted,
             color: '#FFFFFF',
             size: 'md',
             weight: 'bold',
