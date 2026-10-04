@@ -285,14 +285,13 @@ export function formatDayMissionsForLine(dateKey: string, items: any[]): string 
       block += `\nผู้รับผิดชอบ : ${m.assignee}`;
     }
     
-    // Check if attachment exists, prepend base URL if it's a relative path
-    let detailLink = '';
-    if (m.attachment_url) {
-      detailLink = m.attachment_url.startsWith('http') ? m.attachment_url : `https://jobcomm.onrender.com${m.attachment_url}`;
+    if (m.description && m.description.trim()) {
+      block += `\nรายละเอียด : ${m.description.trim()}`;
     }
-    
-    if (detailLink) {
-      block += `\n🔗 รายละเอียด: ${detailLink}`;
+
+    if (m.attachment_url) {
+      const attachLink = m.attachment_url.startsWith('http') ? m.attachment_url : `https://jobcomm.onrender.com${m.attachment_url}`;
+      block += `\nเอกสารแนบ : ${attachLink}`;
     }
     
     return block;
@@ -338,13 +337,13 @@ export function formatMissionForLine(
     lines.push(`ผู้รับผิดชอบ : ${mission.assignee}`);
   }
   
-  let detailLink = '';
-  if (mission.attachment_url) {
-    detailLink = mission.attachment_url.startsWith('http') ? mission.attachment_url : `https://jobcomm.onrender.com${mission.attachment_url}`;
+  if (mission.description && mission.description.trim()) {
+    lines.push(`รายละเอียด : ${mission.description.trim()}`);
   }
   
-  if (detailLink) {
-    lines.push(`รายละเอียด : ${detailLink}`);
+  if (mission.attachment_url) {
+    const attachLink = mission.attachment_url.startsWith('http') ? mission.attachment_url : `https://jobcomm.onrender.com${mission.attachment_url}`;
+    lines.push(`เอกสารแนบ : ${attachLink}`);
   }
 
   return lines.join('\n');

@@ -370,8 +370,6 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           <p className="text-slate-700 font-normal leading-relaxed whitespace-pre-line flex-1">
             {mission.description?.trim()
               ? mission.description
-              : mission.attachment_url
-              ? 'มีเอกสารแนบ'
               : '-'}
           </p>
         </div>

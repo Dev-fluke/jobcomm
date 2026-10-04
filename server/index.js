@@ -733,7 +733,7 @@ function buildDailyLineFlexMessage(dateStr, missions) {
       });
     }
 
-    if (hasDescription && !hasAttachment) {
+    if (hasDescription) {
       itemContents.push({
         type: 'text',
         text: `📝 ${m.description}`,
