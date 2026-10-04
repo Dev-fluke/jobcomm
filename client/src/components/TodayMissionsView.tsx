@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import type { Mission } from '../types';
 import { MissionCard } from './MissionCard';
-import { formatThaiDateFull, getAutomaticMissionStatus, sortMissionsForDisplay, formatDayMissionsForLine, copyTextToClipboard } from '../utils/thaiDate';
-import { PlusCircle, Search, Clock, Copy } from 'lucide-react';
+import { formatThaiDateFull, getAutomaticMissionStatus, sortMissionsForDisplay } from '../utils/thaiDate';
+import { PlusCircle, Search, Clock } from 'lucide-react';
 
 interface TodayMissionsViewProps {
   missions: Mission[];
@@ -73,23 +73,6 @@ export const TodayMissionsView: React.FC<TodayMissionsViewProps> = ({
           <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
             <span>{fullThaiDate}</span>
           </h2>
-          <button
-            type="button"
-            onClick={async () => {
-              const text = formatDayMissionsForLine(todayDateStr, missionsWithAutoStatus);
-              const success = await copyTextToClipboard(text);
-              if (success) {
-                onToast?.('คัดลอกข้อความสรุปภารกิจสำหรับส่ง LINE เรียบร้อยแล้ว', 'success');
-              } else {
-                onToast?.('ไม่สามารถคัดลอกข้อความได้', 'error');
-              }
-            }}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-blue-100 hover:bg-blue-200 text-blue-800 transition-colors shadow-xs active:scale-95 cursor-pointer"
-            title="คัดลอกข้อความสรุปภารกิจของวันนี้สำหรับส่งต่อเข้า LINE"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            <span>คัดลอก</span>
-          </button>
         </div>
 
         {/* Counter Badges */}
