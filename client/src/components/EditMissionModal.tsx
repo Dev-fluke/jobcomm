@@ -69,9 +69,9 @@ export const EditMissionModal: React.FC<EditMissionModalProps> = ({
       assignee,
       status,
       priority,
-      attachment_url: attachmentUrl || undefined,
-      attachment_name: attachmentName || undefined,
-      attachment_type: attachmentType || undefined
+      attachment_url: attachmentUrl || null,
+      attachment_name: attachmentName || null,
+      attachment_type: attachmentType || null
     });
     setIsSubmitting(false);
     if (success) {

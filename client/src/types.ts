@@ -12,9 +12,9 @@ export interface Mission {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'normal' | 'high' | 'urgent';
   notes?: string;
-  attachment_url?: string;
-  attachment_name?: string;
-  attachment_type?: string;
+  attachment_url?: string | null;
+  attachment_name?: string | null;
+  attachment_type?: string | null;
   created_at?: string;
   updated_at?: string;
 }
