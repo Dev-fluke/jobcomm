@@ -919,7 +919,7 @@ app.post('/api/line/webhook', async (req, res) => {
         } else if (event.type === 'message' && event.message?.text?.trim() === '#jobcomm') {
           await replyLineMessage(
             event.replyToken,
-            `✅ บอท JobComm ทำงานปกติครับ\nGroup ID: ${detectedGroupId}\nพร้อมส่งภารกิจอัตโนมัติทุก ${cachedNotifyTime} น.`
+            `✅ บอท JobComm ทำงานปกติครับ\nพร้อมส่งภารกิจอัตโนมัติทุก ${cachedNotifyTime} น.`
           );
         }
       }
