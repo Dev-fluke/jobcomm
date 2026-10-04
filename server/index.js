@@ -914,7 +914,7 @@ app.post('/api/line/webhook', async (req, res) => {
         if (event.type === 'join') {
           await replyLineMessage(
             event.replyToken,
-            `✅ เชื่อมต่อบอท JobComm กับกลุ่มนี้สำเร็จแล้วครับ! ระบบจะส่งสรุปภารกิจประจำวันให้ทุกวันเวลา ${cachedNotifyTime} น. อัตโนมัติครับ`
+            `สวัสดีครับ! บอทส่งภารกิจพร้อมทำงานครับ ผมจะคอยแจ้งเตือนงานที่คุณบันทึกไว้ทุกเช้าเวลา ${cachedNotifyTime} น. อัตโนมัติครับ`
           );
         } else if (event.type === 'message' && event.message?.text?.trim() === '#jobcomm') {
           await replyLineMessage(
