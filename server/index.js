@@ -483,7 +483,12 @@ function buildDailyLineMessage(dateStr, missions) {
     const e = cleanTime(m.end_time);
     const timeStr = s && e ? `${s} - ${e}` : s ? s : 'ไม่ระบุเวลา';
     const locationStr = m.location ? `, ${m.location}` : '';
-    return `${timeStr} ${m.title}${locationStr}`;
+
+    // Check if mission has description or attachment
+    const hasDetail = Boolean((m.description && m.description.trim()) || m.attachment_url);
+    const detailSuffix = hasDetail ? ' (รายละเอียด)' : '';
+
+    return `${timeStr} ${m.title}${locationStr}${detailSuffix}`;
   }).join('\n\n');
 
   return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
@@ -493,11 +498,13 @@ function buildDailyLineMessage(dateStr, missions) {
 let cachedLineGroupId = process.env.LINE_GROUP_ID || null;
 let cachedNotifyTime = '06:00';
 let cachedNotifyEnabled = true;
+let cachedNotifyOnEmpty = true;
 
 async function getLineConfig() {
   let groupId = cachedLineGroupId;
   let notifyTime = cachedNotifyTime;
   let notifyEnabled = cachedNotifyEnabled;
+  let notifyOnEmpty = cachedNotifyOnEmpty;
 
   try {
     const presets = await getPresets();
@@ -518,9 +525,15 @@ async function getLineConfig() {
       notifyEnabled = enabledPreset.name.replace('LINE_NOTIFY_ENABLED:', '').trim() === 'true';
       cachedNotifyEnabled = notifyEnabled;
     }
+
+    const emptyPreset = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ON_EMPTY:'));
+    if (emptyPreset) {
+      notifyOnEmpty = emptyPreset.name.replace('LINE_NOTIFY_ON_EMPTY:', '').trim() === 'true';
+      cachedNotifyOnEmpty = notifyOnEmpty;
+    }
   } catch {}
 
-  return { groupId, notifyTime, notifyEnabled };
+  return { groupId, notifyTime, notifyEnabled, notifyOnEmpty };
 }
 
 async function saveStoredGroupId(groupId) {
@@ -540,7 +553,7 @@ async function saveStoredGroupId(groupId) {
   }
 }
 
-async function saveLineSettings({ notifyTime, notifyEnabled }) {
+async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty }) {
   try {
     const presets = await getPresets();
     if (notifyTime !== undefined) {
@@ -563,8 +576,18 @@ async function saveLineSettings({ notifyTime, notifyEnabled }) {
       }
     }
 
+    if (notifyOnEmpty !== undefined) {
+      cachedNotifyOnEmpty = Boolean(notifyOnEmpty);
+      const existing = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ON_EMPTY:'));
+      if (existing) {
+        await updatePreset('categories', existing.id, { name: `LINE_NOTIFY_ON_EMPTY:${cachedNotifyOnEmpty}` });
+      } else {
+        await addPreset('categories', { name: `LINE_NOTIFY_ON_EMPTY:${cachedNotifyOnEmpty}` });
+      }
+    }
+
     setupDailyCronJob();
-    console.log(`⚙️ Saved LINE Settings: Time=${cachedNotifyTime}, Enabled=${cachedNotifyEnabled}`);
+    console.log(`⚙️ Saved LINE Settings: Time=${cachedNotifyTime}, Enabled=${cachedNotifyEnabled}, NotifyOnEmpty=${cachedNotifyOnEmpty}`);
   } catch (err) {
     console.error('Failed to save LINE settings:', err);
   }
@@ -698,7 +721,8 @@ app.get('/api/line/status', async (req, res) => {
       hasSecret: Boolean(process.env.LINE_CHANNEL_SECRET),
       groupId: config.groupId || null,
       notifyTime: config.notifyTime,
-      notifyEnabled: config.notifyEnabled
+      notifyEnabled: config.notifyEnabled,
+      notifyOnEmpty: config.notifyOnEmpty
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -708,9 +732,15 @@ app.get('/api/line/status', async (req, res) => {
 // PUT update line settings
 app.put('/api/line/settings', async (req, res) => {
   try {
-    const { notifyTime, notifyEnabled } = req.body;
-    await saveLineSettings({ notifyTime, notifyEnabled });
-    res.json({ success: true, message: 'บันทึกการตั้งค่า LINE สำเร็จ', notifyTime, notifyEnabled });
+    const { notifyTime, notifyEnabled, notifyOnEmpty } = req.body;
+    await saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty });
+    res.json({
+      success: true,
+      message: 'บันทึกการตั้งค่า LINE สำเร็จ',
+      notifyTime,
+      notifyEnabled,
+      notifyOnEmpty
+    });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -759,6 +789,13 @@ async function setupDailyCronJob() {
       const todayStr = `${yyyy}-${mm}-${dd}`;
 
       const missions = await getTodayMissions(todayStr);
+
+      // Check if no missions and notifyOnEmpty is false -> skip sending
+      if ((!missions || missions.length === 0) && !activeConfig.notifyOnEmpty) {
+        console.log(`ℹ️ [CRON ${notifyTime}] Skipped: No missions for ${todayStr} and notifyOnEmpty is disabled.`);
+        return;
+      }
+
       const message = buildDailyLineMessage(todayStr, missions);
 
       await sendLinePushMessage(activeConfig.groupId, message);

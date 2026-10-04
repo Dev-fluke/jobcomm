@@ -110,7 +110,9 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
       const e = cleanTime(m.end_time);
       const timeStr = s && e ? `${s} - ${e}` : s ? s : 'ไม่ระบุเวลา';
       const locationStr = m.location ? `, ${m.location}` : '';
-      return `${timeStr} ${m.title}${locationStr}`;
+      const hasDetail = Boolean((m.description && m.description.trim()) || m.attachment_url);
+      const detailSuffix = hasDetail ? ' (รายละเอียด)' : '';
+      return `${timeStr} ${m.title}${locationStr}${detailSuffix}`;
     }).join('\n\n');
 
     const fullText = `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;

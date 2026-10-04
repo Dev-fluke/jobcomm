@@ -22,6 +22,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onBack }) => {
   const [notifyTime, setNotifyTime] = useState<string>('06:00');
   const [notifyEnabled, setNotifyEnabled] = useState<boolean>(true);
+  const [notifyOnEmpty, setNotifyOnEmpty] = useState<boolean>(true);
   const [hasToken, setHasToken] = useState<boolean>(false);
   const [hasSecret, setHasSecret] = useState<boolean>(false);
   const [groupId, setGroupId] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
         setGroupId(data.groupId);
         if (data.notifyTime) setNotifyTime(data.notifyTime);
         if (data.notifyEnabled !== undefined) setNotifyEnabled(data.notifyEnabled);
+        if (data.notifyOnEmpty !== undefined) setNotifyOnEmpty(data.notifyOnEmpty);
       }
     } catch (err) {
       console.error('Error fetching LINE status:', err);
@@ -61,11 +63,11 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
       const res = await fetch(`${API_BASE}/line/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notifyTime, notifyEnabled })
+        body: JSON.stringify({ notifyTime, notifyEnabled, notifyOnEmpty })
       });
 
       if (res.ok) {
-        onToast?.('บันทึกการตั้งค่าเวลาส่งภารกิจเรียบร้อยแล้ว', 'success');
+        onToast?.('บันทึกการตั้งค่าเรียบร้อยแล้ว', 'success');
       } else {
         throw new Error('ไม่สามารถบันทึกการตั้งค่าได้');
       }
@@ -129,7 +131,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
 
       {/* Main Settings Card */}
       <div className="bg-white rounded-xl border border-slate-300 shadow-xs p-5 space-y-6">
-        {/* Toggle On/Off Switch */}
+        {/* Toggle On/Off Switch: แจ้งเตือนประจำวัน */}
         <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
           <div>
             <span className="font-semibold text-sm text-slate-800 block">
@@ -144,6 +146,29 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
               type="checkbox"
               checked={notifyEnabled}
               onChange={(e) => setNotifyEnabled(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-800"></div>
+          </label>
+        </div>
+
+        {/* Toggle On/Off Switch: ส่งข้อความกรณีไม่มีภารกิจ */}
+        <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
+          <div>
+            <span className="font-semibold text-sm text-slate-800 block">
+              ส่งข้อความแจ้งเตือนกรณี "ไม่มีภารกิจ"
+            </span>
+            <span className="text-xs text-slate-500">
+              {notifyOnEmpty
+                ? 'เปิดใช้งาน: หากวันนั้นไม่มีภารกิจ ระบบจะส่งข้อความแจ้งว่า "- วันนี้ไม่มีภารกิจ -"'
+                : 'ปิดใช้งาน: หากวันนั้นไม่มีภารกิจ ระบบจะไม่ส่งข้อความใดๆ เข้ากลุ่ม'}
+            </span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyOnEmpty}
+              onChange={(e) => setNotifyOnEmpty(e.target.checked)}
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-800"></div>
