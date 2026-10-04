@@ -593,12 +593,252 @@ async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty }) {
   }
 }
 
-// Push message helper
-async function sendLinePushMessage(targetId, text) {
+function buildDailyLineFlexMessage(dateStr, missions) {
+  const dateFormatted = formatThaiDateWithDay(dateStr);
+
+  // If no missions
+  if (!missions || missions.length === 0) {
+    return {
+      type: 'flex',
+      altText: `ภารกิจ${dateFormatted} (ไม่มีภารกิจ)`,
+      contents: {
+        type: 'bubble',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#1E3A8A',
+          paddingAll: '15px',
+          contents: [
+            {
+              type: 'text',
+              text: '📋 สรุปภารกิจประจำวัน',
+              color: '#93C5FD',
+              size: 'xs',
+              weight: 'bold'
+            },
+            {
+              type: 'text',
+              text: `ภารกิจ${dateFormatted}`,
+              color: '#FFFFFF',
+              size: 'md',
+              weight: 'bold',
+              margin: 'xs'
+            }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '20px',
+          contents: [
+            {
+              type: 'text',
+              text: '- วันนี้ไม่มีภารกิจ -',
+              color: '#64748B',
+              size: 'sm',
+              align: 'center'
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '12px',
+          contents: [
+            {
+              type: 'button',
+              style: 'link',
+              height: 'sm',
+              action: {
+                type: 'uri',
+                label: '🌐 เปิดดูระบบ JobComm',
+                uri: 'https://jobcomm.onrender.com/'
+              }
+            }
+          ]
+        }
+      }
+    };
+  }
+
+  const sorted = [...missions].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+
+  const missionBoxes = [];
+
+  sorted.forEach((m, idx) => {
+    const s = cleanTime(m.start_time);
+    const e = cleanTime(m.end_time);
+    const timeStr = s && e ? `${s} - ${e}` : s ? s : 'ไม่ระบุเวลา';
+    const locText = m.location ? `📍 ${m.location}` : '';
+
+    // Check if mission has attachment or description
+    const hasAttachment = Boolean(m.attachment_url);
+    const hasDescription = Boolean(m.description && m.description.trim());
+
+    // Resolve URL: attachment file URL if exists, else web app
+    let actionUrl = 'https://jobcomm.onrender.com/';
+    if (hasAttachment) {
+      if (m.attachment_url.startsWith('http://') || m.attachment_url.startsWith('https://')) {
+        actionUrl = m.attachment_url;
+      } else {
+        actionUrl = `https://jobcomm.onrender.com${m.attachment_url}`;
+      }
+    }
+
+    const itemContents = [
+      {
+        type: 'box',
+        layout: 'horizontal',
+        contents: [
+          {
+            type: 'text',
+            text: `⏰ ${timeStr}`,
+            weight: 'bold',
+            size: 'xs',
+            color: '#1E40AF',
+            flex: 0
+          }
+        ]
+      },
+      {
+        type: 'text',
+        text: m.title,
+        weight: 'bold',
+        size: 'sm',
+        color: '#1E293B',
+        wrap: true,
+        margin: 'xs'
+      }
+    ];
+
+    if (locText) {
+      itemContents.push({
+        type: 'text',
+        text: locText,
+        size: 'xs',
+        color: '#64748B',
+        wrap: true,
+        margin: 'xs'
+      });
+    }
+
+    if (hasDescription && !hasAttachment) {
+      itemContents.push({
+        type: 'text',
+        text: `📝 ${m.description}`,
+        size: 'xs',
+        color: '#475569',
+        wrap: true,
+        margin: 'xs'
+      });
+    }
+
+    // If has attachment or description, add direct button
+    if (hasAttachment) {
+      itemContents.push({
+        type: 'button',
+        style: 'secondary',
+        height: 'sm',
+        color: '#EFF6FF',
+        margin: 'sm',
+        action: {
+          type: 'uri',
+          label: '📎 เปิดไฟล์แนบ / รายละเอียด',
+          uri: actionUrl
+        }
+      });
+    }
+
+    const boxContainer = {
+      type: 'box',
+      layout: 'vertical',
+      paddingAll: '10px',
+      backgroundColor: '#F8FAFC',
+      cornerRadius: '8px',
+      borderColor: '#E2E8F0',
+      borderWidth: '1px',
+      contents: itemContents
+    };
+
+    if (idx > 0) {
+      boxContainer.margin = 'md';
+    }
+
+    missionBoxes.push(boxContainer);
+  });
+
+  return {
+    type: 'flex',
+    altText: `ภารกิจ${dateFormatted} (${missions.length} รายการ)`,
+    contents: {
+      type: 'bubble',
+      size: 'mega',
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#1E3A8A',
+        paddingAll: '15px',
+        contents: [
+          {
+            type: 'text',
+            text: '📋 รายงานภารกิจประจำวัน',
+            color: '#93C5FD',
+            size: 'xs',
+            weight: 'bold'
+          },
+          {
+            type: 'text',
+            text: `ภารกิจ${dateFormatted} ครับ`,
+            color: '#FFFFFF',
+            size: 'md',
+            weight: 'bold',
+            margin: 'xs'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: '15px',
+        contents: missionBoxes
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        paddingAll: '10px',
+        backgroundColor: '#FFFFFF',
+        contents: [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#1E3A8A',
+            height: 'sm',
+            action: {
+              type: 'uri',
+              label: '🌐 เปิดดูระบบ JobComm ทั้งหมด',
+              uri: 'https://jobcomm.onrender.com/'
+            }
+          }
+        ]
+      }
+    }
+  };
+}
+
+// Push message helper (supports plain text or LINE Flex Message object)
+async function sendLinePushMessage(targetId, messagePayload) {
   const token = process.env.LINE_ACCESS_TOKEN;
   if (!token) {
     console.error('❌ LINE_ACCESS_TOKEN not set in environment variables');
     return { success: false, error: 'LINE_ACCESS_TOKEN not configured' };
+  }
+
+  // Determine message structure
+  let messages = [];
+  if (typeof messagePayload === 'string') {
+    messages = [{ type: 'text', text: messagePayload }];
+  } else if (messagePayload && typeof messagePayload === 'object') {
+    messages = [messagePayload];
   }
 
   try {
@@ -610,7 +850,7 @@ async function sendLinePushMessage(targetId, text) {
       },
       body: JSON.stringify({
         to: targetId,
-        messages: [{ type: 'text', text }]
+        messages
       })
     });
 
@@ -702,10 +942,10 @@ app.post('/api/line/test-send', async (req, res) => {
 
     const todayStr = getTodayDateString(req);
     const missions = await getTodayMissions(todayStr);
-    const message = buildDailyLineMessage(todayStr, missions);
+    const flexMessage = buildDailyLineFlexMessage(todayStr, missions);
 
-    const result = await sendLinePushMessage(groupId, message);
-    res.json({ success: result.success, groupId, message, result });
+    const result = await sendLinePushMessage(groupId, flexMessage);
+    res.json({ success: result.success, groupId, result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -796,9 +1036,9 @@ async function setupDailyCronJob() {
         return;
       }
 
-      const message = buildDailyLineMessage(todayStr, missions);
+      const flexMessage = buildDailyLineFlexMessage(todayStr, missions);
 
-      await sendLinePushMessage(activeConfig.groupId, message);
+      await sendLinePushMessage(activeConfig.groupId, flexMessage);
       console.log(`🚀 [CRON ${notifyTime}] Successfully sent missions for ${todayStr} to ${activeConfig.groupId}`);
     } catch (err) {
       console.error(`❌ [CRON ${notifyTime}] Error sending daily mission notification:`, err);
