@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import {
   Bell,
   Clock,
@@ -9,7 +8,10 @@ import {
   RefreshCw,
   ExternalLink,
   ShieldCheck,
-  Check
+  Check,
+  Lock,
+  KeyRound,
+  ArrowLeft
 } from 'lucide-react';
 
 interface LineSettingsViewProps {
@@ -20,6 +22,13 @@ interface LineSettingsViewProps {
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onBack }) => {
+  // Password protection state (26366)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('jobcomm_settings_auth') === 'true';
+  });
+  const [passwordInput, setPasswordInput] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>('');
+
   const [notifyTime, setNotifyTime] = useState<string>('06:00');
   const [notifyEnabled, setNotifyEnabled] = useState<boolean>(true);
   const [notifyOnEmpty, setNotifyOnEmpty] = useState<boolean>(true);
@@ -99,7 +108,85 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
     }
   };
 
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === '26366') {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('jobcomm_settings_auth', 'true');
+      setPasswordError('');
+      onToast?.('ยืนยันรหัสผ่านถูกต้อง ยินดีต้อนรับสู่หน้าตั้งค่า');
+    } else {
+      setPasswordError('รหัสผ่านไม่ถูกต้อง (กรุณาระบุรหัสผ่าน 26366)');
+    }
+  };
+
   const timePresets = ['05:30', '06:00', '06:30', '07:00', '07:30', '08:00'];
+
+  // If not authenticated, show password prompt modal/screen
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-12">
+        <div className="bg-white rounded-2xl border border-slate-300 shadow-lg p-6 sm:p-8 text-center space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 mx-auto flex items-center justify-center shadow-inner">
+            <Lock className="w-8 h-8 text-blue-800" />
+          </div>
+
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">
+              ระบบรักษาความปลอดภัย
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">
+              กรุณากรอกรหัสผ่านเพื่อเข้าสู่หน้าตั้งค่าการส่งภารกิจเข้า LINE
+            </p>
+          </div>
+
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
+            <div>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    setPasswordError('');
+                  }}
+                  placeholder="กรอกรหัสผ่าน..."
+                  autoFocus
+                  className="w-full pl-9 pr-3 py-2.5 text-center text-sm font-semibold tracking-wider bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-800 focus:bg-white transition-all"
+                />
+              </div>
+              {passwordError && (
+                <p className="text-xs text-red-600 font-medium mt-2 flex items-center justify-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{passwordError}</span>
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2.5 px-4 bg-blue-800 hover:bg-blue-900 active:bg-blue-950 text-white rounded-xl text-sm font-bold shadow-md transition-all flex items-center justify-center gap-2"
+            >
+              <Check className="w-4 h-4" />
+              <span>ยืนยันรหัสผ่าน</span>
+            </button>
+          </form>
+
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>ยกเลิกและกลับหน้าหลัก</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
