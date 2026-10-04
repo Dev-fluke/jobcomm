@@ -168,14 +168,24 @@ function broadcastUpdate(action, payload) {
   }
 }
 
-// Get helper for today's date formatted as YYYY-MM-DD
+// Get helper for today's date formatted as YYYY-MM-DD in Bangkok timezone
+function getBangkokDateString() {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = formatter.formatToParts(new Date());
+  const y = parts.find(p => p.type === 'year').value;
+  const m = parts.find(p => p.type === 'month').value;
+  const d = parts.find(p => p.type === 'day').value;
+  return `${y}-${m}-${d}`;
+}
+
 function getTodayDateString(req) {
-  if (req.query.date) return req.query.date;
-  const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const dd = String(now.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  if (req && req.query && req.query.date) return req.query.date;
+  return getBangkokDateString();
 }
 
 // PRESETS API (Categories, Locations, Personnel)
@@ -1074,11 +1084,7 @@ async function setupDailyCronJob() {
         return;
       }
 
-      const now = new Date();
-      const yyyy = now.getFullYear();
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const todayStr = `${yyyy}-${mm}-${dd}`;
+      const todayStr = getBangkokDateString();
 
       const missions = await getTodayMissions(todayStr);
 
