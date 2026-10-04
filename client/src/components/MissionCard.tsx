@@ -237,36 +237,9 @@ export const MissionCard: React.FC<MissionCardProps> = ({
             : 'border-slate-800 shadow-xs hover:shadow-md'
         } ${isTvMode ? 'p-6 text-base' : 'p-4 sm:p-5 text-sm'}`}
       >
-        {/* Top Row: Mission Title (Left) + Countdown / Status (Right) - Faithful to wireframe */}
-        <div className="flex items-start justify-between gap-3 pb-1">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline flex-wrap gap-1.5">
-              <span
-                className={`font-bold shrink-0 ${
-                  isTvMode ? 'text-xl text-blue-950' : 'text-base sm:text-lg text-slate-900'
-                }`}
-              >
-                {mission.category ? `${mission.category} :` : 'ภารกิจ :'}
-              </span>
-              <span
-                className={`font-bold break-words text-slate-900 ${
-                  isCompleted ? 'line-through text-slate-500' : ''
-                } ${isTvMode ? 'text-xl text-slate-950' : 'text-base sm:text-lg'}`}
-              >
-                {mission.title || '-'}
-              </span>
-            </div>
-
-            {/* Urgent priority badge */}
-            {mission.priority === 'urgent' && !isCompleted && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded mt-1">
-                <AlertTriangle className="w-3 h-3" /> ด่วนที่สุด
-              </span>
-            )}
-          </div>
-
-          {/* Wireframe top-right label: "ในอีก ... ชม." / "กำลังดำเนินการ" / "เสร็จสิ้นแล้ว" */}
-          <div className="shrink-0 text-right flex items-center gap-2">
+        {/* Top Row: Countdown / Status (Left/Right) + Action buttons */}
+        <div className="flex items-center justify-between gap-3 pb-1">
+          <div className="flex items-center gap-2">
             <span
               className={`inline-block px-2.5 py-1 rounded-md border text-xs sm:text-sm font-semibold tracking-wide ${getBadgeStyle()} ${
                 isTvMode ? 'text-base px-4 py-2' : ''
@@ -274,6 +247,14 @@ export const MissionCard: React.FC<MissionCardProps> = ({
             >
               {countdown.text}
             </span>
+
+            {/* Urgent priority badge */}
+            {mission.priority === 'urgent' && !isCompleted && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded">
+                <AlertTriangle className="w-3 h-3" /> ด่วนที่สุด
+              </span>
+            )}
+          </div>
 
           {/* Discreet Copy / Edit / Delete icons (hidden in TV mode) */}
           {!isTvMode && (
@@ -324,14 +305,31 @@ export const MissionCard: React.FC<MissionCardProps> = ({
             </div>
           )}
         </div>
-      </div>
 
-      {/* เส้นคั่น HR ตามความต้องการ */}
+      {/* เส้นคั่น HR */}
       <hr className="border-slate-200 my-2" />
 
-      {/* Body Rows: บรรทัดแรกต่อจาก HR เป็น เวลา ตามด้วย สถานที่ และ รายละเอียด */}
+      {/* Body Rows: เริ่มจาก ภารกิจ (บรรทัดแรก) ต่อด้วย เวลา (บรรทัดถัดมา) */}
       <div className={`space-y-2 text-slate-700 flex-1 flex flex-col ${isTvMode ? 'space-y-3.5' : ''}`}>
-        {/* Row: เวลา : (ต่อบรรทัดแรกหลัง HR) */}
+        {/* Row 1 ใต้ HR: ภารกิจ : (อบรม : ...) */}
+        <div className="flex items-start gap-2">
+          <span
+            className={`font-bold shrink-0 ${
+              isTvMode ? 'text-lg text-blue-950' : 'text-sm sm:text-base text-slate-900'
+            }`}
+          >
+            {mission.category ? `${mission.category} :` : 'ภารกิจ :'}
+          </span>
+          <span
+            className={`font-bold break-words text-slate-900 ${
+              isCompleted ? 'line-through text-slate-500' : ''
+            } ${isTvMode ? 'text-lg text-slate-950' : 'text-sm sm:text-base'}`}
+          >
+            {mission.title || '-'}
+          </span>
+        </div>
+
+        {/* Row 2 ใต้ HR: เวลา : (ต่อบรรทัดถัดมาใต้ภารกิจ) */}
         <div className="flex items-start gap-2">
           <span className="font-bold text-slate-900 shrink-0 flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-blue-900 shrink-0" />
