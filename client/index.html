@@ -11,28 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body class="bg-slate-100 text-slate-900 min-h-screen font-['Prompt',sans-serif] antialiased selection:bg-blue-600 selection:text-white">
-    <div id="root">
-      <!-- Loading Animation (Shows while React & API are loading) -->
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: 'Prompt', sans-serif; background-color: #f1f5f9;">
-        <div style="font-size: 64px; animation: bounce 1s infinite, glow 1.5s ease-in-out infinite alternate;">⚡</div>
-        <div style="margin-top: 24px; font-size: 22px; font-weight: 600; color: #1e3a8a; animation: pulse 1.5s infinite;">กำลังโหลดข้อมูล...</div>
-        <div style="margin-top: 8px; font-size: 14px; color: #64748b; animation: pulse 1.5s infinite;">ระบบกำลังปลุกเซิร์ฟเวอร์ (อาจใช้เวลา 30-50 วินาที)</div>
-        <style>
-          @keyframes bounce {
-            0%, 100% { transform: translateY(0) scale(1); }
-            50% { transform: translateY(-15px) scale(1.1); }
-          }
-          @keyframes glow {
-            from { filter: drop-shadow(0 0 5px #fbbf24); }
-            to { filter: drop-shadow(0 0 25px #f59e0b); }
-          }
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        </style>
-      </div>
-    </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

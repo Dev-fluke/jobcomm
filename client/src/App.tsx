@@ -254,16 +254,7 @@ export function App() {
     );
   }
 
-  // Show full-screen loading animation if it's the initial fetch
-  if (isLoading && missions.length === 0 && todayMissions.length === 0) {
-    return (
-      <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center font-['Prompt',sans-serif]">
-        <div className="text-6xl animate-bounce drop-shadow-[0_0_15px_rgba(245,158,11,0.8)]">⚡</div>
-        <div className="mt-6 text-2xl font-semibold text-blue-900 animate-pulse">กำลังโหลดข้อมูล...</div>
-        <div className="mt-2 text-sm text-slate-500 animate-pulse">ระบบกำลังเชื่อมต่อฐานข้อมูล (อาจใช้เวลา 30-50 วินาทีในครั้งแรก)</div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col antialiased selection:bg-blue-600 selection:text-white">
