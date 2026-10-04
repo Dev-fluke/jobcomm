@@ -269,6 +269,41 @@ export function sortMissionsForDisplay<T extends { start_date?: string; end_date
 /**
  * Format mission details into a clean, concise 4-line LINE message pattern
  */
+export function formatDayMissionsForLine(dateKey: string, items: any[]): string {
+  const dateFormatted = formatThaiDateWithDay(dateKey);
+  const sortedItems = [...items].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+  const cleanTime = (t?: string) => (t || '').replace(/:/g, '').trim();
+
+  const missionBlocks = sortedItems.map((m) => {
+    const s = cleanTime(m.start_time);
+    const e = cleanTime(m.end_time);
+    const timeStr = s && e ? `${s} - ${e}` : s ? s : 'ไม่ระบุเวลา';
+    const locationStr = m.location ? `, ${m.location}` : '';
+    
+    let block = `${timeStr} ${m.title}${locationStr}`;
+    if (m.assignee) {
+      block += `\nผู้รับผิดชอบ : ${m.assignee}`;
+    }
+    
+    // Check if attachment exists, prepend base URL if it's a relative path
+    let detailLink = '';
+    if (m.attachment_url) {
+      detailLink = m.attachment_url.startsWith('http') ? m.attachment_url : `https://jobcomm.onrender.com${m.attachment_url}`;
+    }
+    
+    if (detailLink) {
+      block += `\n🔗 รายละเอียด: ${detailLink}`;
+    }
+    
+    return block;
+  }).join('\n\n');
+
+  return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจทั้งหมดได้ที่ https://jobcomm.onrender.com/`;
+}
+
+/**
+ * Format mission details into a clean, concise LINE message pattern
+ */
 export function formatMissionForLine(
   mission: {
     title: string;
@@ -281,7 +316,7 @@ export function formatMissionForLine(
     description?: string;
     assignee?: string;
     status?: string;
-    attachment_name?: string | null;
+    attachment_url?: string | null;
   },
   _now?: Date
 ): string {
@@ -298,6 +333,19 @@ export function formatMissionForLine(
     `⏰ เวลา : ${timeText}`,
     `📍 สถานที่ : ${mission.location || '-'}`
   ];
+  
+  if (mission.assignee) {
+    lines.push(`ผู้รับผิดชอบ : ${mission.assignee}`);
+  }
+  
+  let detailLink = '';
+  if (mission.attachment_url) {
+    detailLink = mission.attachment_url.startsWith('http') ? mission.attachment_url : `https://jobcomm.onrender.com${mission.attachment_url}`;
+  }
+  
+  if (detailLink) {
+    lines.push(`รายละเอียด : ${detailLink}`);
+  }
 
   return lines.join('\n');
 }

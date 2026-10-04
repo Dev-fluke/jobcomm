@@ -722,6 +722,17 @@ function buildDailyLineFlexMessage(dateStr, missions) {
       });
     }
 
+    if (m.assignee) {
+      itemContents.push({
+        type: 'text',
+        text: `👤 ผู้รับผิดชอบ: ${m.assignee}`,
+        size: 'xs',
+        color: '#334155',
+        wrap: true,
+        margin: 'xs'
+      });
+    }
+
     if (hasDescription && !hasAttachment) {
       itemContents.push({
         type: 'text',
@@ -743,7 +754,7 @@ function buildDailyLineFlexMessage(dateStr, missions) {
         margin: 'sm',
         action: {
           type: 'uri',
-          label: '📎 เปิดไฟล์แนบ / รายละเอียด',
+          label: '📎 ดูรายละเอียด / เปิดไฟล์',
           uri: actionUrl
         }
       });

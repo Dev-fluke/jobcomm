@@ -8,7 +8,8 @@ import {
   formatThaiDateWithDay,
   getTodayDateString,
   sortMissionsForDisplay,
-  copyTextToClipboard
+  copyTextToClipboard,
+  formatDayMissionsForLine
 } from '../utils/thaiDate';
 import { Calendar, Search, Filter, Plus, ArrowRight, Copy, Check } from 'lucide-react';
 
@@ -98,24 +99,7 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
 
   // Copy full day missions text formatted for LINE
   const handleCopyDayMissions = async (dateKey: string, items: Mission[]) => {
-    const dateFormatted = formatThaiDateWithDay(dateKey);
-
-    // Sort items by start_time ASC
-    const sortedItems = [...items].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
-
-    const cleanTime = (t?: string) => (t || '').replace(/:/g, '').trim();
-
-    const missionBlocks = sortedItems.map((m) => {
-      const s = cleanTime(m.start_time);
-      const e = cleanTime(m.end_time);
-      const timeStr = s && e ? `${s} - ${e}` : s ? s : 'ไม่ระบุเวลา';
-      const locationStr = m.location ? `, ${m.location}` : '';
-      const hasDetail = Boolean((m.description && m.description.trim()) || m.attachment_url);
-      const detailSuffix = hasDetail ? ' (รายละเอียด)' : '';
-      return `${timeStr} ${m.title}${locationStr}${detailSuffix}`;
-    }).join('\n\n');
-
-    const fullText = `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
+    const fullText = formatDayMissionsForLine(dateKey, items);
 
     const success = await copyTextToClipboard(fullText);
     if (success) {
