@@ -522,6 +522,7 @@ let cachedNotifyTime = '06:00';
 let cachedNotifyEnabled = true;
 let cachedNotifyOnEmpty = true;
 let cachedNotifyOnAdd = false;
+let cachedNotifyOnHolidays = true;
 
 async function getLineConfig() {
   let groupId = cachedLineGroupId;
@@ -529,6 +530,7 @@ async function getLineConfig() {
   let notifyEnabled = cachedNotifyEnabled;
   let notifyOnEmpty = cachedNotifyOnEmpty;
   let notifyOnAdd = cachedNotifyOnAdd;
+  let notifyOnHolidays = cachedNotifyOnHolidays;
 
   try {
     const presets = await getPresets();
@@ -561,9 +563,15 @@ async function getLineConfig() {
       notifyOnAdd = onAddPreset.name.replace('LINE_NOTIFY_ON_ADD:', '').trim() === 'true';
       cachedNotifyOnAdd = notifyOnAdd;
     }
+
+    const onHolidayPreset = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ON_HOLIDAYS:'));
+    if (onHolidayPreset) {
+      notifyOnHolidays = onHolidayPreset.name.replace('LINE_NOTIFY_ON_HOLIDAYS:', '').trim() === 'true';
+      cachedNotifyOnHolidays = notifyOnHolidays;
+    }
   } catch {}
 
-  return { groupId, notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd };
+  return { groupId, notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays };
 }
 
 async function saveStoredGroupId(groupId) {
@@ -583,7 +591,7 @@ async function saveStoredGroupId(groupId) {
   }
 }
 
-async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd }) {
+async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays }) {
   try {
     const presets = await getPresets();
     if (notifyTime !== undefined) {
@@ -626,8 +634,18 @@ async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, noti
       }
     }
 
+    if (notifyOnHolidays !== undefined) {
+      cachedNotifyOnHolidays = Boolean(notifyOnHolidays);
+      const existing = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ON_HOLIDAYS:'));
+      if (existing) {
+        await updatePreset('categories', existing.id, { name: `LINE_NOTIFY_ON_HOLIDAYS:${cachedNotifyOnHolidays}` });
+      } else {
+        await addPreset('categories', { name: `LINE_NOTIFY_ON_HOLIDAYS:${cachedNotifyOnHolidays}` });
+      }
+    }
+
     setupDailyCronJob();
-    console.log(`⚙️ Saved LINE Settings: Time=${cachedNotifyTime}, Enabled=${cachedNotifyEnabled}, NotifyOnEmpty=${cachedNotifyOnEmpty}, NotifyOnAdd=${cachedNotifyOnAdd}`);
+    console.log(`⚙️ Saved LINE Settings: Time=${cachedNotifyTime}, Enabled=${cachedNotifyEnabled}, NotifyOnEmpty=${cachedNotifyOnEmpty}, NotifyOnAdd=${cachedNotifyOnAdd}, NotifyOnHolidays=${cachedNotifyOnHolidays}`);
   } catch (err) {
     console.error('Failed to save LINE settings:', err);
   }
@@ -1023,7 +1041,8 @@ app.get('/api/line/status', async (req, res) => {
       notifyTime: config.notifyTime,
       notifyEnabled: config.notifyEnabled,
       notifyOnEmpty: config.notifyOnEmpty,
-      notifyOnAdd: config.notifyOnAdd
+      notifyOnAdd: config.notifyOnAdd,
+      notifyOnHolidays: config.notifyOnHolidays
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1033,15 +1052,16 @@ app.get('/api/line/status', async (req, res) => {
 // PUT update line settings
 app.put('/api/line/settings', async (req, res) => {
   try {
-    const { notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd } = req.body;
-    await saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd });
+    const { notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays } = req.body;
+    await saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays });
     res.json({
       success: true,
       message: 'บันทึกการตั้งค่า LINE สำเร็จ',
       notifyTime,
       notifyEnabled,
       notifyOnEmpty,
-      notifyOnAdd
+      notifyOnAdd,
+      notifyOnHolidays
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1085,6 +1105,16 @@ async function setupDailyCronJob() {
       }
 
       const todayStr = getBangkokDateString();
+
+      // Check for weekends (Saturday/Sunday) if notifyOnHolidays is false
+      if (!activeConfig.notifyOnHolidays) {
+        const d = new Date(todayStr + 'T00:00:00Z');
+        const dayOfWeek = d.getUTCDay(); // 0 = Sun, 6 = Sat
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          console.log(`ℹ️ [CRON ${notifyTime}] Skipped: Today (${todayStr}) is a weekend and notifyOnHolidays is disabled.`);
+          return;
+        }
+      }
 
       const missions = await getTodayMissions(todayStr);
 
