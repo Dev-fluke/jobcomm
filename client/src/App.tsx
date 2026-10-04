@@ -9,6 +9,7 @@ import { AddMissionView } from './components/AddMissionView';
 import { TvDisplayView } from './components/TvDisplayView';
 import { DesktopTableView } from './components/DesktopTableView';
 import { EditMissionModal } from './components/EditMissionModal';
+import { LineSettingsView } from './components/LineSettingsView';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -347,6 +348,13 @@ export function App() {
             onRefresh={fetchData}
             onCompleteEarly={handleCompleteMissionEarly}
             onToast={showToast}
+          />
+        )}
+
+        {activeTab === 'settings' && (
+          <LineSettingsView
+            onToast={showToast}
+            onBack={() => setActiveTab('today')}
           />
         )}
       </main>

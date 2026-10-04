@@ -489,20 +489,38 @@ function buildDailyLineMessage(dateStr, missions) {
   return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
 }
 
-// Target Group ID storage (persisted via DB preset or fallback)
+// Target Group ID & Settings storage (persisted via DB preset or fallback)
 let cachedLineGroupId = process.env.LINE_GROUP_ID || null;
+let cachedNotifyTime = '06:00';
+let cachedNotifyEnabled = true;
 
-async function getStoredGroupId() {
-  if (cachedLineGroupId) return cachedLineGroupId;
+async function getLineConfig() {
+  let groupId = cachedLineGroupId;
+  let notifyTime = cachedNotifyTime;
+  let notifyEnabled = cachedNotifyEnabled;
+
   try {
     const presets = await getPresets();
-    const found = presets.categories?.find(p => p.name?.startsWith('LINE_GROUP_ID:'));
-    if (found) {
-      cachedLineGroupId = found.name.replace('LINE_GROUP_ID:', '').trim();
-      return cachedLineGroupId;
+    const groupPreset = presets.categories?.find(p => p.name?.startsWith('LINE_GROUP_ID:'));
+    if (groupPreset) {
+      groupId = groupPreset.name.replace('LINE_GROUP_ID:', '').trim();
+      cachedLineGroupId = groupId;
+    }
+
+    const timePreset = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_TIME:'));
+    if (timePreset) {
+      notifyTime = timePreset.name.replace('LINE_NOTIFY_TIME:', '').trim();
+      cachedNotifyTime = notifyTime;
+    }
+
+    const enabledPreset = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ENABLED:'));
+    if (enabledPreset) {
+      notifyEnabled = enabledPreset.name.replace('LINE_NOTIFY_ENABLED:', '').trim() === 'true';
+      cachedNotifyEnabled = notifyEnabled;
     }
   } catch {}
-  return null;
+
+  return { groupId, notifyTime, notifyEnabled };
 }
 
 async function saveStoredGroupId(groupId) {
@@ -519,6 +537,36 @@ async function saveStoredGroupId(groupId) {
     console.log(`📌 Saved LINE Group ID: ${groupId}`);
   } catch (err) {
     console.error('Failed to save LINE Group ID to presets:', err);
+  }
+}
+
+async function saveLineSettings({ notifyTime, notifyEnabled }) {
+  try {
+    const presets = await getPresets();
+    if (notifyTime !== undefined) {
+      cachedNotifyTime = notifyTime;
+      const existing = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_TIME:'));
+      if (existing) {
+        await updatePreset('categories', existing.id, { name: `LINE_NOTIFY_TIME:${notifyTime}` });
+      } else {
+        await addPreset('categories', { name: `LINE_NOTIFY_TIME:${notifyTime}` });
+      }
+    }
+
+    if (notifyEnabled !== undefined) {
+      cachedNotifyEnabled = Boolean(notifyEnabled);
+      const existing = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ENABLED:'));
+      if (existing) {
+        await updatePreset('categories', existing.id, { name: `LINE_NOTIFY_ENABLED:${cachedNotifyEnabled}` });
+      } else {
+        await addPreset('categories', { name: `LINE_NOTIFY_ENABLED:${cachedNotifyEnabled}` });
+      }
+    }
+
+    setupDailyCronJob();
+    console.log(`⚙️ Saved LINE Settings: Time=${cachedNotifyTime}, Enabled=${cachedNotifyEnabled}`);
+  } catch (err) {
+    console.error('Failed to save LINE settings:', err);
   }
 }
 
@@ -603,12 +651,12 @@ app.post('/api/line/webhook', async (req, res) => {
         if (event.type === 'join') {
           await replyLineMessage(
             event.replyToken,
-            '✅ เชื่อมต่อบอท JobComm กับกลุ่มนี้สำเร็จแล้วครับ! ระบบจะส่งสรุปภารกิจประจำวันให้ทุกวันเวลา 06:00 น. อัตโนมัติครับ'
+            `✅ เชื่อมต่อบอท JobComm กับกลุ่มนี้สำเร็จแล้วครับ! ระบบจะส่งสรุปภารกิจประจำวันให้ทุกวันเวลา ${cachedNotifyTime} น. อัตโนมัติครับ`
           );
         } else if (event.type === 'message' && event.message?.text?.trim() === '#jobcomm') {
           await replyLineMessage(
             event.replyToken,
-            `✅ บอท JobComm ทำงานปกติครับ\nGroup ID: ${detectedGroupId}\nพร้อมส่งภารกิจอัตโนมัติทุก 06:00 น.`
+            `✅ บอท JobComm ทำงานปกติครับ\nGroup ID: ${detectedGroupId}\nพร้อมส่งภารกิจอัตโนมัติทุก ${cachedNotifyTime} น.`
           );
         }
       }
@@ -619,9 +667,9 @@ app.post('/api/line/webhook', async (req, res) => {
 });
 
 // Test trigger endpoint for manual test
-app.get('/api/line/test-send', async (req, res) => {
+app.post('/api/line/test-send', async (req, res) => {
   try {
-    const groupId = await getStoredGroupId();
+    const { groupId } = await getLineConfig();
     if (!groupId) {
       return res.status(400).json({
         success: false,
@@ -640,43 +688,91 @@ app.get('/api/line/test-send', async (req, res) => {
   }
 });
 
-// GET current line config status
+// GET current line config & status
 app.get('/api/line/status', async (req, res) => {
-  const groupId = await getStoredGroupId();
-  res.json({
-    hasToken: Boolean(process.env.LINE_ACCESS_TOKEN),
-    hasSecret: Boolean(process.env.LINE_CHANNEL_SECRET),
-    groupId: groupId || null
-  });
-});
-
-// CRON JOB: Everyday at 06:00 AM (Asia/Bangkok timezone)
-cron.schedule('0 6 * * *', async () => {
-  console.log('⏰ [CRON 06:00 AM] Triggering daily LINE mission notification...');
   try {
-    const groupId = await getStoredGroupId();
-    if (!groupId) {
-      console.warn('⚠️ [CRON] Skipped: No LINE Group ID registered yet.');
-      return;
-    }
-
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-
-    const missions = await getTodayMissions(todayStr);
-    const message = buildDailyLineMessage(todayStr, missions);
-
-    await sendLinePushMessage(groupId, message);
-    console.log(`🚀 [CRON 06:00 AM] Successfully sent missions for ${todayStr} to ${groupId}`);
-  } catch (err) {
-    console.error('❌ [CRON 06:00 AM] Error sending daily mission notification:', err);
+    const config = await getLineConfig();
+    res.json({
+      success: true,
+      hasToken: Boolean(process.env.LINE_ACCESS_TOKEN),
+      hasSecret: Boolean(process.env.LINE_CHANNEL_SECRET),
+      groupId: config.groupId || null,
+      notifyTime: config.notifyTime,
+      notifyEnabled: config.notifyEnabled
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
   }
-}, {
-  timezone: 'Asia/Bangkok'
 });
+
+// PUT update line settings
+app.put('/api/line/settings', async (req, res) => {
+  try {
+    const { notifyTime, notifyEnabled } = req.body;
+    await saveLineSettings({ notifyTime, notifyEnabled });
+    res.json({ success: true, message: 'บันทึกการตั้งค่า LINE สำเร็จ', notifyTime, notifyEnabled });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// CRON JOB SETUP: Dynamic based on settings
+let currentCronTask = null;
+
+async function setupDailyCronJob() {
+  if (currentCronTask) {
+    currentCronTask.stop();
+    currentCronTask = null;
+  }
+
+  const { groupId, notifyTime, notifyEnabled } = await getLineConfig();
+
+  if (!notifyEnabled) {
+    console.log('⏸️ [CRON] Daily LINE notifications are currently DISABLED.');
+    return;
+  }
+
+  const [hourStr, minStr] = (notifyTime || '06:00').split(':');
+  const hour = parseInt(hourStr || '6', 10);
+  const min = parseInt(minStr || '0', 10);
+
+  const cronPattern = `${min} ${hour} * * *`;
+  console.log(`⏰ [CRON] Scheduled daily LINE notification at ${notifyTime} (Pattern: "${cronPattern}")`);
+
+  currentCronTask = cron.schedule(cronPattern, async () => {
+    console.log(`⏰ [CRON ${notifyTime}] Triggering daily LINE mission notification...`);
+    try {
+      const activeConfig = await getLineConfig();
+      if (!activeConfig.notifyEnabled) {
+        console.log('⏸️ [CRON] Notification is disabled.');
+        return;
+      }
+      if (!activeConfig.groupId) {
+        console.warn('⚠️ [CRON] Skipped: No LINE Group ID registered yet.');
+        return;
+      }
+
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      const missions = await getTodayMissions(todayStr);
+      const message = buildDailyLineMessage(todayStr, missions);
+
+      await sendLinePushMessage(activeConfig.groupId, message);
+      console.log(`🚀 [CRON ${notifyTime}] Successfully sent missions for ${todayStr} to ${activeConfig.groupId}`);
+    } catch (err) {
+      console.error(`❌ [CRON ${notifyTime}] Error sending daily mission notification:`, err);
+    }
+  }, {
+    timezone: 'Asia/Bangkok'
+  });
+}
+
+// Initialize Cron on startup
+setupDailyCronJob();
 
 // Serve frontend static files
 const distPath = path.join(__dirname, '../client/dist');

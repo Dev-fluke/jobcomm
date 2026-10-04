@@ -19,7 +19,7 @@ export interface Mission {
   updated_at?: string;
 }
 
-export type ActiveTab = 'today' | 'other' | 'add' | 'tv' | 'table';
+export type ActiveTab = 'today' | 'other' | 'add' | 'tv' | 'table' | 'settings';
 
 export interface Stats {
   total: number;
