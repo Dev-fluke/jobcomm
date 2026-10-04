@@ -573,7 +573,7 @@ async function saveStoredGroupId(groupId) {
   }
 }
 
-async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty }) {
+async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd }) {
   try {
     const presets = await getPresets();
     if (notifyTime !== undefined) {
