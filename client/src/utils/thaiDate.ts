@@ -39,6 +39,22 @@ export function formatThaiDateShort(dateStr: string | Date): string {
 }
 
 /**
+ * Format date with Day name and short Thai Buddhist Era, e.g. "วันอาทิตย์ 6 ต.ค.69"
+ */
+export function formatThaiDateWithDay(dateStr: string | Date): string {
+  if (!dateStr) return '';
+  const d = typeof dateStr === 'string' ? new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : '')) : dateStr;
+  if (isNaN(d.getTime())) return String(dateStr);
+
+  const dayName = THAI_DAYS_FULL[d.getDay()];
+  const day = d.getDate();
+  const month = THAI_MONTHS_SHORT[d.getMonth()];
+  const thaiYearShort = String((d.getFullYear() + 543) % 100);
+
+  return `${dayName} ${day} ${month}${thaiYearShort}`;
+}
+
+/**
  * Format date to medium Thai Buddhist Era, e.g. "1 ต.ค. 2569"
  */
 export function formatThaiDateMedium(dateStr: string | Date): string {

@@ -238,7 +238,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
         } ${isTvMode ? 'p-6 text-base' : 'p-4 sm:p-5 text-sm'}`}
       >
         {/* Top Row: Mission Title (Left) + Countdown / Status (Right) - Faithful to wireframe */}
-        <div className="flex items-start justify-between gap-3 pb-2.5 border-b border-slate-200">
+        <div className="flex items-start justify-between gap-3 pb-1">
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline flex-wrap gap-1.5">
               <span
@@ -326,9 +326,12 @@ export const MissionCard: React.FC<MissionCardProps> = ({
         </div>
       </div>
 
-      {/* Body Rows faithfully matching wireframe layout */}
-      <div className={`mt-3 space-y-2 text-slate-700 flex-1 flex flex-col ${isTvMode ? 'space-y-3.5' : ''}`}>
-        {/* Row 2: เวลา : */}
+      {/* เส้นคั่น HR ตามความต้องการ */}
+      <hr className="border-slate-200 my-2" />
+
+      {/* Body Rows: บรรทัดแรกต่อจาก HR เป็น เวลา ตามด้วย สถานที่ และ รายละเอียด */}
+      <div className={`space-y-2 text-slate-700 flex-1 flex flex-col ${isTvMode ? 'space-y-3.5' : ''}`}>
+        {/* Row: เวลา : (ต่อบรรทัดแรกหลัง HR) */}
         <div className="flex items-start gap-2">
           <span className="font-bold text-slate-900 shrink-0 flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-blue-900 shrink-0" />
