@@ -34,6 +34,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
   const [notifyTime, setNotifyTime] = useState<string>('06:00');
   const [notifyEnabled, setNotifyEnabled] = useState<boolean>(true);
   const [notifyOnEmpty, setNotifyOnEmpty] = useState<boolean>(true);
+  const [notifyOnAdd, setNotifyOnAdd] = useState<boolean>(false);
   const [hasToken, setHasToken] = useState<boolean>(false);
   const [hasSecret, setHasSecret] = useState<boolean>(false);
   const [groupId, setGroupId] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
         if (data.notifyTime) setNotifyTime(data.notifyTime);
         if (data.notifyEnabled !== undefined) setNotifyEnabled(data.notifyEnabled);
         if (data.notifyOnEmpty !== undefined) setNotifyOnEmpty(data.notifyOnEmpty);
+        if (data.notifyOnAdd !== undefined) setNotifyOnAdd(data.notifyOnAdd);
       }
     } catch (err) {
       console.error('Error fetching LINE status:', err);
@@ -74,7 +76,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
       const res = await fetch(`${API_BASE}/line/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notifyTime, notifyEnabled, notifyOnEmpty })
+        body: JSON.stringify({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd })
       });
 
       if (res.ok) {
@@ -261,6 +263,29 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-800"></div>
+          </label>
+        </div>
+
+        {/* Toggle On/Off Switch: แจ้งเตือนเมื่อมีการเพิ่มภารกิจใหม่ */}
+        <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
+          <div>
+            <span className="font-semibold text-sm text-slate-800 block">
+              แจ้งเตือนอัตโนมัติเมื่อมีการเพิ่มภารกิจใหม่
+            </span>
+            <span className="text-xs text-slate-500">
+              {notifyOnAdd
+                ? 'เปิดใช้งาน: เมื่อมีการกดบันทึกภารกิจใหม่ ระบบจะส่งการ์ดภารกิจนั้นเข้ากลุ่มทันที'
+                : 'ปิดใช้งาน: ไม่ส่งข้อความเข้ากลุ่มเมื่อมีการเพิ่มภารกิจใหม่'}
+            </span>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={notifyOnAdd}
+              onChange={(e) => setNotifyOnAdd(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="w-11 h-6 bg-emerald-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-emerald-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
           </label>
         </div>
 

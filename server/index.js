@@ -318,6 +318,18 @@ app.post('/api/missions', async (req, res) => {
       attachment_type: attachment_type || null
     });
 
+    // Check if notify on add is enabled
+    const lineConfig = await getLineConfig();
+    if (lineConfig.notifyOnAdd && lineConfig.groupId) {
+      try {
+        const flexMessage = buildNewMissionFlexMessage(newMission);
+        await sendLinePushMessage(lineConfig.groupId, flexMessage);
+        console.log(`📤 Sent new mission notification for ID ${newMission.id}`);
+      } catch (err) {
+        console.error('❌ Error sending new mission notification:', err);
+      }
+    }
+
     broadcastUpdate('mission_created', newMission);
     res.status(201).json({ success: true, data: newMission });
   } catch (error) {
@@ -499,12 +511,14 @@ let cachedLineGroupId = process.env.LINE_GROUP_ID || null;
 let cachedNotifyTime = '06:00';
 let cachedNotifyEnabled = true;
 let cachedNotifyOnEmpty = true;
+let cachedNotifyOnAdd = false;
 
 async function getLineConfig() {
   let groupId = cachedLineGroupId;
   let notifyTime = cachedNotifyTime;
   let notifyEnabled = cachedNotifyEnabled;
   let notifyOnEmpty = cachedNotifyOnEmpty;
+  let notifyOnAdd = cachedNotifyOnAdd;
 
   try {
     const presets = await getPresets();
@@ -531,9 +545,15 @@ async function getLineConfig() {
       notifyOnEmpty = emptyPreset.name.replace('LINE_NOTIFY_ON_EMPTY:', '').trim() === 'true';
       cachedNotifyOnEmpty = notifyOnEmpty;
     }
+
+    const onAddPreset = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ON_ADD:'));
+    if (onAddPreset) {
+      notifyOnAdd = onAddPreset.name.replace('LINE_NOTIFY_ON_ADD:', '').trim() === 'true';
+      cachedNotifyOnAdd = notifyOnAdd;
+    }
   } catch {}
 
-  return { groupId, notifyTime, notifyEnabled, notifyOnEmpty };
+  return { groupId, notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd };
 }
 
 async function saveStoredGroupId(groupId) {
@@ -586,8 +606,18 @@ async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty }) {
       }
     }
 
+    if (notifyOnAdd !== undefined) {
+      cachedNotifyOnAdd = Boolean(notifyOnAdd);
+      const existing = presets.categories?.find(p => p.name?.startsWith('LINE_NOTIFY_ON_ADD:'));
+      if (existing) {
+        await updatePreset('categories', existing.id, { name: `LINE_NOTIFY_ON_ADD:${cachedNotifyOnAdd}` });
+      } else {
+        await addPreset('categories', { name: `LINE_NOTIFY_ON_ADD:${cachedNotifyOnAdd}` });
+      }
+    }
+
     setupDailyCronJob();
-    console.log(`⚙️ Saved LINE Settings: Time=${cachedNotifyTime}, Enabled=${cachedNotifyEnabled}, NotifyOnEmpty=${cachedNotifyOnEmpty}`);
+    console.log(`⚙️ Saved LINE Settings: Time=${cachedNotifyTime}, Enabled=${cachedNotifyEnabled}, NotifyOnEmpty=${cachedNotifyOnEmpty}, NotifyOnAdd=${cachedNotifyOnAdd}`);
   } catch (err) {
     console.error('Failed to save LINE settings:', err);
   }
@@ -836,6 +866,15 @@ function buildDailyLineFlexMessage(dateStr, missions) {
   };
 }
 
+function buildNewMissionFlexMessage(mission) {
+  const flex = buildDailyLineFlexMessage(mission.start_date, [mission]);
+  flex.altText = `🆕 ภารกิจใหม่: ${mission.title}`;
+  flex.contents.header.backgroundColor = '#047857'; // Emerald 700
+  flex.contents.header.contents[0].text = '🆕 มีภารกิจใหม่เพิ่มเข้าระบบ';
+  flex.contents.header.contents[0].color = '#6EE7B7'; // Emerald 300
+  return flex;
+}
+
 // Push message helper (supports plain text or LINE Flex Message object)
 async function sendLinePushMessage(targetId, messagePayload) {
   const token = process.env.LINE_ACCESS_TOKEN;
@@ -973,7 +1012,8 @@ app.get('/api/line/status', async (req, res) => {
       groupId: config.groupId || null,
       notifyTime: config.notifyTime,
       notifyEnabled: config.notifyEnabled,
-      notifyOnEmpty: config.notifyOnEmpty
+      notifyOnEmpty: config.notifyOnEmpty,
+      notifyOnAdd: config.notifyOnAdd
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -983,14 +1023,15 @@ app.get('/api/line/status', async (req, res) => {
 // PUT update line settings
 app.put('/api/line/settings', async (req, res) => {
   try {
-    const { notifyTime, notifyEnabled, notifyOnEmpty } = req.body;
-    await saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty });
+    const { notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd } = req.body;
+    await saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd });
     res.json({
       success: true,
       message: 'บันทึกการตั้งค่า LINE สำเร็จ',
       notifyTime,
       notifyEnabled,
-      notifyOnEmpty
+      notifyOnEmpty,
+      notifyOnAdd
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
