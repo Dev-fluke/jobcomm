@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import {
   Bell,
   Clock,
@@ -13,6 +14,7 @@ import {
   KeyRound,
   ArrowLeft
 } from 'lucide-react';
+
 
 interface LineSettingsViewProps {
   onToast?: (text: string, type?: 'success' | 'error') => void;
