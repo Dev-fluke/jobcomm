@@ -4,6 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import multer from 'multer';
+import cron from 'node-cron';
 import {
   isSupabase,
   supabase,
@@ -436,6 +437,245 @@ app.post('/api/export-pptx', async (req, res) => {
     console.error('Export PPT error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+// ==========================================
+// LINE Messaging API & Automation System
+// ==========================================
+
+const THAI_MONTHS_SHORT = [
+  'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+  'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
+];
+
+const THAI_DAYS_FULL = [
+  'วันอาทิตย์', 'วันจันทร์', 'วันอังคาร', 'วันพุธ', 'วันพฤหัสบดี', 'วันศุกร์', 'วันเสาร์'
+];
+
+function formatThaiDateWithDay(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : ''));
+  if (isNaN(d.getTime())) return String(dateStr);
+
+  const dayName = THAI_DAYS_FULL[d.getDay()];
+  const day = d.getDate();
+  const month = THAI_MONTHS_SHORT[d.getMonth()];
+  const thaiYearShort = String((d.getFullYear() + 543) % 100);
+
+  return `${dayName} ${day} ${month}${thaiYearShort}`;
+}
+
+function cleanTime(t) {
+  return (t || '').replace(/:/g, '').trim();
+}
+
+function buildDailyLineMessage(dateStr, missions) {
+  const dateFormatted = formatThaiDateWithDay(dateStr);
+
+  if (!missions || missions.length === 0) {
+    return `ภารกิจ${dateFormatted} ครับ\n\n- วันนี้ไม่มีภารกิจ -\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
+  }
+
+  const sorted = [...missions].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+
+  const missionBlocks = sorted.map((m) => {
+    const s = cleanTime(m.start_time);
+    const e = cleanTime(m.end_time);
+    const timeStr = s && e ? `${s} - ${e}` : s ? s : 'ไม่ระบุเวลา';
+    const locationStr = m.location ? `, ${m.location}` : '';
+    return `${timeStr} ${m.title}${locationStr}`;
+  }).join('\n\n');
+
+  return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
+}
+
+// Target Group ID storage (persisted via DB preset or fallback)
+let cachedLineGroupId = process.env.LINE_GROUP_ID || null;
+
+async function getStoredGroupId() {
+  if (cachedLineGroupId) return cachedLineGroupId;
+  try {
+    const presets = await getPresets();
+    const found = presets.categories?.find(p => p.name?.startsWith('LINE_GROUP_ID:'));
+    if (found) {
+      cachedLineGroupId = found.name.replace('LINE_GROUP_ID:', '').trim();
+      return cachedLineGroupId;
+    }
+  } catch {}
+  return null;
+}
+
+async function saveStoredGroupId(groupId) {
+  if (!groupId) return;
+  cachedLineGroupId = groupId;
+  try {
+    const presets = await getPresets();
+    const existing = presets.categories?.find(p => p.name?.startsWith('LINE_GROUP_ID:'));
+    if (existing) {
+      await updatePreset('categories', existing.id, { name: `LINE_GROUP_ID:${groupId}` });
+    } else {
+      await addPreset('categories', { name: `LINE_GROUP_ID:${groupId}` });
+    }
+    console.log(`📌 Saved LINE Group ID: ${groupId}`);
+  } catch (err) {
+    console.error('Failed to save LINE Group ID to presets:', err);
+  }
+}
+
+// Push message helper
+async function sendLinePushMessage(targetId, text) {
+  const token = process.env.LINE_ACCESS_TOKEN;
+  if (!token) {
+    console.error('❌ LINE_ACCESS_TOKEN not set in environment variables');
+    return { success: false, error: 'LINE_ACCESS_TOKEN not configured' };
+  }
+
+  try {
+    const response = await fetch('https://api.line.me/v2/bot/message/push', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        to: targetId,
+        messages: [{ type: 'text', text }]
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error(`❌ LINE Push Error (${response.status}):`, errText);
+      return { success: false, status: response.status, error: errText };
+    }
+
+    console.log(`✅ LINE message sent successfully to ${targetId}`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Exception in sendLinePushMessage:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Reply message helper for webhooks
+async function replyLineMessage(replyToken, text) {
+  const token = process.env.LINE_ACCESS_TOKEN;
+  if (!token || !replyToken) return;
+
+  try {
+    await fetch('https://api.line.me/v2/bot/message/reply', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        replyToken,
+        messages: [{ type: 'text', text }]
+      })
+    });
+  } catch (err) {
+    console.error('Error replying LINE message:', err);
+  }
+}
+
+// Webhook endpoint for LINE Bot events
+app.post('/api/line/webhook', async (req, res) => {
+  // Always respond 200 OK to LINE immediately
+  res.status(200).send('OK');
+
+  try {
+    const events = req.body?.events || [];
+    for (const event of events) {
+      console.log('📨 Received LINE Webhook event:', event.type, event.source);
+
+      let detectedGroupId = null;
+      if (event.source?.type === 'group' && event.source?.groupId) {
+        detectedGroupId = event.source.groupId;
+      } else if (event.source?.type === 'room' && event.source?.roomId) {
+        detectedGroupId = event.source.roomId;
+      }
+
+      if (detectedGroupId) {
+        await saveStoredGroupId(detectedGroupId);
+
+        // If user typed 'กลุ่มนี้' or joined group, reply confirmation
+        if (event.type === 'join') {
+          await replyLineMessage(
+            event.replyToken,
+            '✅ เชื่อมต่อบอท JobComm กับกลุ่มนี้สำเร็จแล้วครับ! ระบบจะส่งสรุปภารกิจประจำวันให้ทุกวันเวลา 06:00 น. อัตโนมัติครับ'
+          );
+        } else if (event.type === 'message' && event.message?.text?.trim() === '#jobcomm') {
+          await replyLineMessage(
+            event.replyToken,
+            `✅ บอท JobComm ทำงานปกติครับ\nGroup ID: ${detectedGroupId}\nพร้อมส่งภารกิจอัตโนมัติทุก 06:00 น.`
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error handling webhook:', err);
+  }
+});
+
+// Test trigger endpoint for manual test
+app.get('/api/line/test-send', async (req, res) => {
+  try {
+    const groupId = await getStoredGroupId();
+    if (!groupId) {
+      return res.status(400).json({
+        success: false,
+        error: 'ยังไม่พบรหัสกลุ่ม (Group ID) กรุณาเชิญบอทเข้ากลุ่ม LINE หรือพิมพ์ #jobcomm ในกลุ่มก่อนครับ'
+      });
+    }
+
+    const todayStr = getTodayDateString(req);
+    const missions = await getTodayMissions(todayStr);
+    const message = buildDailyLineMessage(todayStr, missions);
+
+    const result = await sendLinePushMessage(groupId, message);
+    res.json({ success: result.success, groupId, message, result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET current line config status
+app.get('/api/line/status', async (req, res) => {
+  const groupId = await getStoredGroupId();
+  res.json({
+    hasToken: Boolean(process.env.LINE_ACCESS_TOKEN),
+    hasSecret: Boolean(process.env.LINE_CHANNEL_SECRET),
+    groupId: groupId || null
+  });
+});
+
+// CRON JOB: Everyday at 06:00 AM (Asia/Bangkok timezone)
+cron.schedule('0 6 * * *', async () => {
+  console.log('⏰ [CRON 06:00 AM] Triggering daily LINE mission notification...');
+  try {
+    const groupId = await getStoredGroupId();
+    if (!groupId) {
+      console.warn('⚠️ [CRON] Skipped: No LINE Group ID registered yet.');
+      return;
+    }
+
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    const missions = await getTodayMissions(todayStr);
+    const message = buildDailyLineMessage(todayStr, missions);
+
+    await sendLinePushMessage(groupId, message);
+    console.log(`🚀 [CRON 06:00 AM] Successfully sent missions for ${todayStr} to ${groupId}`);
+  } catch (err) {
+    console.error('❌ [CRON 06:00 AM] Error sending daily mission notification:', err);
+  }
+}, {
+  timezone: 'Asia/Bangkok'
 });
 
 // Serve frontend static files
