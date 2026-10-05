@@ -86,7 +86,18 @@ function populateSlideXml(slideXmlTemplate, slideMissions, startOrderNum, isFirs
 
     if (m) {
       const orderStr = toThaiDigits(startOrderNum + i);
-      const missionText = `${m.title || ''}${
+      let prefix = '';
+      const loc = (m.location || '').trim();
+      const locGroup1 = ['ห้องประชุม อย.1', 'ห้องประชุม อย.3', 'ห้องประชุม ศยพ.ศปก.ทอ.'];
+      const locGroup2 = ['ห้องประชุม อย.2', 'โรงเลี้ยง พัน.2 กรม ปพ.อย.', 'ลานอเนกประสงค์ อาคารรณนภากาศ', 'ห้องโถง บก.อย.', 'หอพระไพรีพินาศ'];
+      
+      if (locGroup1.some(l => loc.includes(l))) {
+        prefix = 'สนับสนุน จนท.ควบคุมห้องประชุม ';
+      } else if (locGroup2.some(l => loc.includes(l))) {
+        prefix = 'สนับสนุน จนท.และจัดเครื่องขยายเสียง ';
+      }
+
+      const missionText = `${prefix}${m.title || ''}${
         m.location && !m.title?.includes(m.location) ? ', ' + m.location : ''
       }`;
       const dateText = formatThaiDateRangePpt(m.start_date, m.end_date);
