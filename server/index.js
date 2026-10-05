@@ -402,14 +402,14 @@ app.delete('/api/missions/:id', async (req, res) => {
   }
 });
 
-// DELETE missions by month with password protection (26366)
+// DELETE missions by month with password protection
 app.post('/api/missions/delete-month', async (req, res) => {
   try {
     const { month, password } = req.body;
-    if (password !== '26366') {
+    if (password !== '164381') {
       return res.status(401).json({
         success: false,
-        error: 'รหัสผ่านไม่ถูกต้อง! (กรุณาระบุรหัสผ่าน 26366)'
+        error: 'รหัสผ่านไม่ถูกต้อง'
       });
     }
 

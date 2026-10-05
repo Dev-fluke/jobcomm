@@ -193,15 +193,15 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
   // Count missions in selected month
   const missionsInSelectedMonth = missions.filter((m) => m.start_date.startsWith(selectedMonth));
 
-  // Handle monthly bulk delete with password check: 26366
+  // Handle monthly bulk delete with password check
   const handleConfirmMonthlyDelete = async (e: React.FormEvent) => {
     e.preventDefault();
     setDeleteError('');
     setDeleteSuccess('');
 
     // Security password check
-    if (passwordInput !== '26366') {
-      setDeleteError('รหัสผ่านไม่ถูกต้อง! กรุณากรอกรหัสผ่าน 26366');
+    if (passwordInput !== '164381') {
+      setDeleteError('รหัสผ่านไม่ถูกต้อง');
       return;
     }
 
@@ -251,7 +251,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
           </h2>
         </div>
 
-        {/* Buttons: Removed Add Mission and Print Report, added Monthly Delete (Password: 26366) and CSV Export */}
+        {/* Buttons: Monthly Delete and CSV Export */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Export CSV / Excel Button */}
           <button
@@ -274,7 +274,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
             <span>{isExportingPPT ? 'กำลังสร้าง PPT...' : 'ส่งออก PPT'}</span>
           </button>
 
-          {/* Delete Missions by Month Button (Secured with password: 26366) */}
+          {/* Delete Missions by Month Button */}
           <button
             onClick={() => {
               setIsDeleteMonthModalOpen(true);
@@ -283,7 +283,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
               setDeleteSuccess('');
             }}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-            title="ลบข้อมูลภารกิจทั้งหมดในเดือนที่เลือก (ต้องใช้รหัสผ่าน 26366)"
+            title="ลบข้อมูลภารกิจทั้งหมดในเดือนที่เลือก (ต้องใช้รหัสผ่านยืนยันความปลอดภัย)"
           >
             <Trash2 className="w-4 h-4" />
             <span>ลบภารกิจแบบรายเดือน</span>
@@ -507,7 +507,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
         </div>
       </div>
 
-      {/* Modal ลบภารกิจแบบรายเดือน (รักษาความปลอดภัยด้วยรหัสผ่าน 26366) */}
+      {/* Modal ลบภารกิจแบบรายเดือน */}
       {isDeleteMonthModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-300 animate-in fade-in duration-150">
@@ -571,7 +571,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
                 </div>
               </div>
 
-              {/* Security Password Input (26366) */}
+              {/* Security Password Input */}
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1.5">
                   <Lock className="w-4 h-4 text-red-700" />
@@ -581,7 +581,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
                   type="password"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="กรุณากรอกรหัสผ่าน 5 หลัก"
+                  placeholder="กรุณากรอกรหัสผ่าน..."
                   className="w-full border-2 border-red-500 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400/40 bg-white"
                   required
                   autoFocus

@@ -24,7 +24,7 @@ interface LineSettingsViewProps {
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onBack }) => {
-  // Password protection state (26366)
+  // Password protection state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('jobcomm_settings_auth') === 'true';
   });
@@ -116,13 +116,13 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
 
   const handlePasswordSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === '26366') {
+    if (passwordInput === '164381') {
       setIsAuthenticated(true);
       sessionStorage.setItem('jobcomm_settings_auth', 'true');
       setPasswordError('');
       onToast?.('ยืนยันรหัสผ่านถูกต้อง ยินดีต้อนรับสู่หน้าตั้งค่า');
     } else {
-      setPasswordError('รหัสผ่านไม่ถูกต้อง (กรุณาระบุรหัสผ่าน 26366)');
+      setPasswordError('รหัสผ่านไม่ถูกต้อง');
     }
   };
 
