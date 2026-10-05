@@ -3,6 +3,7 @@ import type { Mission } from '../types';
 import {
   getMissionCountdown,
   formatThaiDateShort,
+  formatThaiDateRangeShort,
   getAutomaticMissionStatus,
   formatMissionForLine,
   copyTextToClipboard
@@ -339,7 +340,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
             {/* Show date if different day */}
             {mission.start_date && (
               <span className="ml-2 text-xs text-slate-500 font-normal">
-                ({formatThaiDateShort(mission.start_date)})
+                ({formatThaiDateRangeShort(mission.start_date, mission.end_date)})
               </span>
             )}
           </span>

@@ -88,12 +88,33 @@ export function formatThaiDateFull(dateStr: string | Date): string {
 /**
  * Format date range in Thai format, e.g. "1 ต.ค. 69 - 2 ต.ค. 69"
  */
-export function formatThaiDateRange(startDateStr: string, endDateStr?: string): string {
+export function formatThaiDateRangeShort(startDateStr: string, endDateStr?: string): string {
   if (!startDateStr) return '';
   if (!endDateStr || startDateStr === endDateStr) {
     return formatThaiDateShort(startDateStr);
   }
-  return `${formatThaiDateShort(startDateStr)} - ${formatThaiDateShort(endDateStr)}`;
+
+  const start = new Date(startDateStr + (startDateStr.length === 10 ? 'T00:00:00' : ''));
+  const end = new Date(endDateStr + (endDateStr.length === 10 ? 'T00:00:00' : ''));
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return `${startDateStr} - ${endDateStr}`;
+
+  const sDay = start.getDate();
+  const sMonth = THAI_MONTHS_SHORT[start.getMonth()];
+  const sYearShort = String((start.getFullYear() + 543) % 100);
+
+  const eDay = end.getDate();
+  const eMonth = THAI_MONTHS_SHORT[end.getMonth()];
+  const eYearShort = String((end.getFullYear() + 543) % 100);
+
+  if (sYearShort === eYearShort) {
+    if (sMonth === eMonth) {
+      return `${sDay}-${eDay} ${sMonth}${eYearShort}`;
+    } else {
+      return `${sDay} ${sMonth} - ${eDay} ${eMonth}${eYearShort}`;
+    }
+  } else {
+    return `${sDay} ${sMonth}${sYearShort} - ${eDay} ${eMonth}${eYearShort}`;
+  }
 }
 
 /**
