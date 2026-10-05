@@ -11,7 +11,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body class="bg-slate-100 text-slate-900 min-h-screen font-['Prompt',sans-serif] antialiased selection:bg-blue-600 selection:text-white">
-    <div id="root"></div>
+    <div id="root">
+      <div style="position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(to bottom, #172554, #0f172a, #020617); color: #ffffff; font-family: 'Prompt', -apple-system, sans-serif; user-select: none;">
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+          <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid rgba(251, 191, 36, 0.2); border-top-color: #fbbf24; border-right-color: rgba(251, 191, 36, 0.5); animation: spin 1s linear infinite;"></div>
+          <div style="position: absolute; width: 56px; height: 56px; border-radius: 50%; background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, rgba(234, 179, 8, 0.1) 100%); border: 1px solid rgba(251, 191, 36, 0.4); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 25px rgba(245, 158, 11, 0.35);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="#fbbf24" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8));">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+          </div>
+        </div>
+        <div style="font-size: 20px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px;">กำลังโหลดข้อมูล...</div>
+        <div style="font-size: 13px; color: rgba(191, 219, 254, 0.8); font-weight: 500;">แผนกสื่อสาร หน่วยบัญชาการอากาศโยธิน</div>
+        <div style="width: 200px; height: 6px; background: rgba(30, 41, 59, 0.9); border-radius: 9999px; overflow: hidden; border: 1px solid rgba(51, 65, 85, 0.6); margin-top: 20px; position: relative;">
+          <div style="width: 50%; height: 100%; background: linear-gradient(to right, #fbbf24, #fde047, #f59e0b); border-radius: 9999px; animation: progress 1.6s ease-in-out infinite; box-shadow: 0 0 8px rgba(251, 191, 36, 0.8);"></div>
+        </div>
+      </div>
+      <style>
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+      </style>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

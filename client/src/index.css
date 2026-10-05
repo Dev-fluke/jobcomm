@@ -40,3 +40,33 @@
   transform: translateY(-2px);
   box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.15);
 }
+
+/* Electric loading animations */
+@keyframes electricGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.7));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(245, 158, 11, 1));
+    transform: scale(1.06);
+  }
+}
+
+.animate-electric {
+  animation: electricGlow 1.8s ease-in-out infinite;
+}
+
+@keyframes indeterminateProgress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+.animate-progress-indeterminate {
+  animation: indeterminateProgress 1.6s ease-in-out infinite;
+}
+

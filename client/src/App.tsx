@@ -10,6 +10,7 @@ import { TvDisplayView } from './components/TvDisplayView';
 import { DesktopTableView } from './components/DesktopTableView';
 import { EditMissionModal } from './components/EditMissionModal';
 import { LineSettingsView } from './components/LineSettingsView';
+import { LoadingScreen } from './components/LoadingScreen';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -27,6 +28,7 @@ export function App() {
     pending: 0
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Edit modal
@@ -80,6 +82,7 @@ export function App() {
       console.error('Failed to fetch data:', err);
     } finally {
       setIsLoading(false);
+      setIsInitialLoading(false);
     }
   }, [todayDateStr]);
 
@@ -242,6 +245,11 @@ export function App() {
       showToast(err.message || 'เกิดข้อผิดพลาดในการบันทึกปิดงาน', 'error');
     }
   };
+
+  // Dedicated Loading Screen with electric icon on initial load
+  if (isInitialLoading) {
+    return <LoadingScreen message="กำลังโหลดข้อมูล..." />;
+  }
 
   // If in TV Mode, render dedicated TV full-screen interface
   if (activeTab === 'tv') {
