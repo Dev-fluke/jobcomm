@@ -95,24 +95,16 @@ export const EditMissionModal: React.FC<EditMissionModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              ภารกิจ :
+              ชื่อภารกิจ :
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="ประเภท"
-                className="w-28 border border-slate-300 rounded-md px-2.5 py-1.5 text-xs text-slate-800"
-              />
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="flex-1 border border-slate-300 rounded-md px-3 py-1.5 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-blue-600"
-                required
-              />
-            </div>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="ระบุชื่อภารกิจ..."
+              className="w-full border border-slate-300 rounded-md px-3 py-2 text-xs sm:text-sm text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

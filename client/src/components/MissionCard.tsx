@@ -311,19 +311,12 @@ export const MissionCard: React.FC<MissionCardProps> = ({
 
       {/* Body Rows: เริ่มจาก ภารกิจ (บรรทัดแรก) ต่อด้วย เวลา (บรรทัดถัดมา) */}
       <div className={`space-y-2 text-slate-700 flex-1 flex flex-col ${isTvMode ? 'space-y-3.5' : ''}`}>
-        {/* Row 1 ใต้ HR: ภารกิจ : (อบรม : ...) */}
+        {/* Row 1 ใต้ HR: ชื่อภารกิจเพียวๆ (ไม่มีคำนำหน้า) */}
         <div className="flex items-start gap-2">
-          <span
-            className={`font-bold shrink-0 ${
-              isTvMode ? 'text-lg text-blue-950' : 'text-sm sm:text-base text-slate-900'
-            }`}
-          >
-            {mission.category ? `${mission.category} :` : 'ภารกิจ :'}
-          </span>
           <span
             className={`font-bold break-words text-slate-900 ${
               isCompleted ? 'line-through text-slate-500' : ''
-            } ${isTvMode ? 'text-lg text-slate-950' : 'text-sm sm:text-base'}`}
+            } ${isTvMode ? 'text-xl sm:text-2xl text-slate-950 leading-snug tracking-tight' : 'text-base sm:text-lg text-slate-900'}`}
           >
             {mission.title || '-'}
           </span>

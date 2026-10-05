@@ -301,135 +301,20 @@ export const AddMissionView: React.FC<AddMissionViewProps> = ({
             </div>
           )}
 
-          {/* Row 1: ภารกิจ : (เลือกแบบดรอปดาวอย่างเดียว ตัดแบบคลิกปุ่มออก ตามสั่ง) */}
+          {/* Row 1: ชื่อภารกิจ : (ระบุชื่อภารกิจอย่างเดียว) */}
           <div className="w-full max-w-full">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-base font-bold text-slate-900">
-                ภารกิจ : <span className="text-red-600">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setManagingType(managingType === 'categories' ? null : 'categories')}
-                className="text-xs text-blue-800 hover:text-blue-900 font-semibold flex items-center gap-1 hover:underline"
-                title="จัดการหมวดหมู่ภารกิจ (เพิ่ม/ลบ/แก้ไข)"
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>จัดการตัวเลือกภารกิจ</span>
-              </button>
-            </div>
-
-            {/* Pure Dropdown for Category + Title Input (No button chips!) */}
-            <div className="flex flex-col sm:flex-row gap-2 w-full max-w-full">
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full sm:w-44 bg-slate-50 border-2 border-slate-800 rounded-md px-3 py-2 text-sm font-semibold text-slate-900 focus:outline-none focus:border-blue-700 shrink-0"
-              >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="ระบุชื่อภารกิจ เช่น ประชุมเตรียมความพร้อม..."
-                className="w-full flex-1 min-w-0 border-2 border-slate-800 rounded-md px-3 py-2 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 bg-white"
-                required
-                autoFocus
-              />
-            </div>
-
-            {/* Inline Category Manager Drawer if toggled */}
-            {managingType === 'categories' && (
-              <div className="mt-3 p-3 bg-blue-50/70 border border-blue-200 rounded-lg space-y-2 animate-in fade-in duration-150 w-full max-w-full">
-                <div className="flex items-center justify-between text-xs font-bold text-blue-950">
-                  <span>+ จัดการประเภทภารกิจ (เพิ่ม / แก้ไข / ลบ)</span>
-                  <button
-                    type="button"
-                    onClick={() => setManagingType(null)}
-                    className="text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newPresetName}
-                    onChange={(e) => setNewPresetName(e.target.value)}
-                    placeholder="พิมพ์ชื่อประเภทใหม่..."
-                    className="flex-1 min-w-0 text-xs bg-white border border-slate-300 rounded px-2.5 py-1.5 focus:outline-none focus:border-blue-700"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAddPreset('categories')}
-                    className="px-3 py-1.5 bg-blue-800 text-white rounded text-xs font-semibold hover:bg-blue-900 shrink-0"
-                  >
-                    เพิ่ม
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1 max-h-32 overflow-y-auto">
-                  {categories.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs flex items-center gap-1.5 text-slate-800"
-                    >
-                      {editingPresetId === item.id ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            value={editingPresetName}
-                            onChange={(e) => setEditingPresetName(e.target.value)}
-                            className="border border-blue-500 rounded px-1 text-xs w-20"
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleUpdatePreset('categories', item.id)}
-                            className="text-emerald-700 font-bold"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingPresetId(null)}
-                            className="text-slate-400"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <span>{item.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingPresetId(item.id);
-                              setEditingPresetName(item.name);
-                            }}
-                            className="text-slate-400 hover:text-blue-700"
-                            title="แก้ไขชื่อ"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePreset('categories', item.id)}
-                            className="text-slate-400 hover:text-red-700"
-                            title="ลบ"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <label className="block text-base font-bold text-slate-900 mb-1.5">
+              ชื่อภารกิจ : <span className="text-red-600">*</span>
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="ระบุชื่อภารกิจ เช่น ประชุมเตรียมความพร้อม, ซ่อมบำรุงวิทยุ..."
+              className="w-full border-2 border-slate-800 rounded-md px-3.5 py-2.5 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 bg-white shadow-xs font-medium"
+              required
+              autoFocus
+            />
           </div>
 
           {/* Row 2: วันที่ : ถึง วันที่ */}

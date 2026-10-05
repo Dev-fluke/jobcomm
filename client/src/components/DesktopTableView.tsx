@@ -125,14 +125,13 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
 
   // Export to CSV
   const handleExportCSV = () => {
-    const headers = ['ลำดับ', 'ภารกิจ', 'ประเภท', 'วันที่เริ่ม', 'วันที่สิ้นสุด', 'เวลา', 'สถานที่', 'รายละเอียด', 'ผู้รับผิดชอบ', 'สถานะ'];
+    const headers = ['ลำดับ', 'ชื่อภารกิจ', 'วันที่เริ่ม', 'วันที่สิ้นสุด', 'เวลา', 'สถานที่', 'รายละเอียด', 'ผู้รับผิดชอบ', 'สถานะ'];
     const rows = filtered.map((m, idx) => {
       const autoStatus = getAutomaticMissionStatus(m);
       const statusText = autoStatus === 'completed' ? 'เสร็จสิ้น' : autoStatus === 'in_progress' ? 'กำลังทำ' : 'รอดำเนินการ';
       return [
         idx + 1,
         `"${m.title.replace(/"/g, '""')}"`,
-        `"${m.category}"`,
         m.start_date,
         m.end_date,
         `"${m.start_time} - ${m.end_time}"`,
@@ -340,22 +339,8 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
           )}
         </div>
 
-        {/* Category & Status Dropdowns */}
+        {/* Status Dropdown */}
         <div className="flex items-center gap-2">
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-slate-700 focus:outline-none focus:border-blue-600"
-          >
-            <option value="all">หมวดหมู่ทั้งหมด</option>
-            <option value="ประชุม">ประชุม</option>
-            <option value="ซ่อมบำรุง">ซ่อมบำรุง</option>
-            <option value="ตรวจเช็คระบบ">ตรวจเช็คระบบ</option>
-            <option value="วางสายสัญญาณ">วางสายสัญญาณ</option>
-            <option value="วิทยุสื่อสาร">วิทยุสื่อสาร</option>
-            <option value="ภารกิจพิเศษ">ภารกิจพิเศษ</option>
-          </select>
-
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -376,8 +361,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
             <thead className="bg-slate-100 border-b border-slate-300 text-slate-700 uppercase font-semibold">
               <tr>
                 <th className="px-3 py-3 w-12 text-center">ลำดับ</th>
-                <th className="px-4 py-3">ภารกิจ</th>
-                <th className="px-3 py-3">ประเภท</th>
+                <th className="px-4 py-3">ชื่อภารกิจ</th>
                 <th className="px-3 py-3">วันที่ / เวลา</th>
                 <th className="px-4 py-3">สถานที่</th>
                 <th className="px-4 py-3">รายละเอียด</th>
@@ -403,11 +387,6 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
                             ด่วน
                           </span>
                         )}
-                      </td>
-                      <td className="px-3 py-3 text-slate-600">
-                        <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 text-xs font-medium">
-                          {m.category || 'ทั่วไป'}
-                        </span>
                       </td>
                       <td className="px-3 py-3 text-slate-700 whitespace-nowrap">
                         <div className="font-medium">{formatThaiDateShort(m.start_date)}</div>

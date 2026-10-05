@@ -324,10 +324,8 @@ export function formatMissionForLine(
     ? `${mission.start_time} ${mission.end_time ? `- ${mission.end_time} น.` : 'น.'}`
     : 'ไม่ระบุเวลา';
 
-  const categoryPrefix = mission.category ? `${mission.category} : ` : '';
-
   const lines = [
-    `🔹 ${categoryPrefix}${mission.title}`,
+    `🔹 ${mission.title}`,
     `📅 วันที่ : ${dateText}`,
     `⏰ เวลา : ${timeText}`,
     `📍 สถานที่ : ${mission.location || '-'}`
