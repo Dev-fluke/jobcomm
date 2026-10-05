@@ -218,7 +218,7 @@ export async function generatePptxReport(missions = []) {
   let presRels = await zip.file('ppt/_rels/presentation.xml.rels').async('string');
   let ctXml = await zip.file('[Content_Types].xml').async('string');
 
-  let currentOrder = 3; // Order starts at Thai number ๓ (3)
+  let currentOrder = 1; // Order starts at Thai number ๑ (1)
 
   for (let s = 1; s <= numSlides; s++) {
     const slideMissions = missions.slice((s - 1) * SLOTS_PER_SLIDE, s * SLOTS_PER_SLIDE);
