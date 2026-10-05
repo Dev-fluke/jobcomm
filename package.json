@@ -1,6 +1,6 @@
 {
   "name": "jobcomm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ระบบบันทึกภารกิจ แผนกสื่อสาร หน่วยบัญชาการอากาศโยธิน (JobComm RTAF)",
   "scripts": {
     "start": "node server/index.js",
