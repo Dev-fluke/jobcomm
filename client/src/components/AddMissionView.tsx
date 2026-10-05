@@ -310,8 +310,7 @@ export const AddMissionView: React.FC<AddMissionViewProps> = ({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="ระบุชื่อภารกิจ เช่น ประชุมเตรียมความพร้อม, ซ่อมบำรุงวิทยุ..."
-              className="w-full border-2 border-slate-800 rounded-md px-3.5 py-2.5 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 bg-white shadow-xs font-medium"
+              className="w-full border-2 border-slate-800 rounded-md px-3.5 py-2.5 text-sm sm:text-base text-slate-900 focus:outline-none focus:border-blue-700 bg-white shadow-xs font-medium"
               required
               autoFocus
             />
@@ -535,8 +534,7 @@ export const AddMissionView: React.FC<AddMissionViewProps> = ({
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="ระบุรายละเอียดของภารกิจ วัตถุประสงค์ หรืออุปกรณ์ที่เกี่ยวข้อง..."
-              className="w-full max-w-full border-2 border-slate-800 rounded-md p-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 box-border"
+              className="w-full max-w-full border-2 border-slate-800 rounded-md p-3 text-sm text-slate-900 focus:outline-none focus:border-blue-700 box-border"
             />
           </div>
 
