@@ -97,7 +97,40 @@ export function formatThaiDateRange(startDateStr: string, endDateStr?: string): 
 }
 
 /**
- * Calculate automatic status purely based on time (เริ่มงานเมื่อถึงเวลา และเสร็จสิ้นเมื่อถึงเวลานั้น)
+ * Generate list of ISO date strings (YYYY-MM-DD) between start and end date (inclusive)
+ */
+export function getDatesInRange(startDateStr: string, endDateStr?: string): string[] {
+  const effectiveEnd = endDateStr || startDateStr;
+  if (!startDateStr || startDateStr === effectiveEnd) {
+    return [startDateStr];
+  }
+
+  const dates: string[] = [];
+  const start = new Date(startDateStr + 'T00:00:00');
+  const end = new Date(effectiveEnd + 'T00:00:00');
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    return [startDateStr];
+  }
+
+  const current = new Date(start);
+  let count = 0;
+  // Safety cap at 60 days
+  while (current <= end && count < 60) {
+    const yyyy = current.getFullYear();
+    const mm = String(current.getMonth() + 1).padStart(2, '0');
+    const dd = String(current.getDate()).padStart(2, '0');
+    dates.push(`${yyyy}-${mm}-${dd}`);
+    current.setDate(current.getDate() + 1);
+    count++;
+  }
+
+  return dates.length > 0 ? dates : [startDateStr];
+}
+
+/**
+ * Calculate automatic status purely based on time and multi-day date range
+ * (เริ่มงานเมื่อถึงเวลาเริ่มต้น และเสร็จสิ้นเมื่อถึงเวลาสิ้นสุดของวันสุดท้าย)
  */
 export function getAutomaticMissionStatus(
   mission: { start_date: string; end_date?: string; start_time?: string; end_time?: string; status?: string },
@@ -109,43 +142,44 @@ export function getAutomaticMissionStatus(
   const todayStr = getTodayDateString(now);
   const effectiveEndDate = mission.end_date || mission.start_date;
 
-  // Past dates -> เสร็จสิ้น
+  // 1. If entire mission date range is in the past -> เสร็จสิ้น
   if (effectiveEndDate < todayStr) {
     return 'completed';
   }
 
-  // Future dates -> รอดำเนินการ
+  // 2. If mission starts in future dates -> รอดำเนินการ
   if (mission.start_date > todayStr) {
     return 'pending';
   }
 
-  // Today!
-  if (!mission.start_time) {
-    return 'in_progress';
-  }
+  // 3. Current date is within mission range [start_date <= todayStr <= effectiveEndDate]
+  const [sY, sM, sD] = mission.start_date.split('-').map(Number);
+  const [sH, sMin] = mission.start_time ? mission.start_time.split(':').map(Number) : [0, 0];
+  const startDateTime = new Date(sY, sM - 1, sD, sH || 0, sMin || 0, 0, 0);
 
-  const [startHour, startMin] = mission.start_time.split(':').map(Number);
-  const startDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour || 0, startMin || 0, 0);
-
+  const [eY, eM, eD] = effectiveEndDate.split('-').map(Number);
   let endDateTime: Date;
   if (mission.end_time) {
-    const [endHour, endMin] = mission.end_time.split(':').map(Number);
-    endDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endHour || 0, endMin || 0, 0);
-  } else {
-    // Default duration 1 hour
+    const [eH, eMin] = mission.end_time.split(':').map(Number);
+    endDateTime = new Date(eY, eM - 1, eD, eH || 0, eMin || 0, 0, 0);
+  } else if (mission.start_time && effectiveEndDate === mission.start_date) {
+    // Single day without end time -> default 1 hour
     endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+  } else {
+    // Multi-day or untimed -> end of effectiveEndDate
+    endDateTime = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
   }
 
   const nowTime = now.getTime();
 
   if (nowTime < startDateTime.getTime()) {
-    // ยังไม่ถึงเวลา -> รอดำเนินการ
+    // ยังไม่ถึงเวลาเริ่มต้น
     return 'pending';
   } else if (nowTime <= endDateTime.getTime()) {
-    // ถึงเวลาเริ่มงาน -> กำลังดำเนินการ
+    // อยู่ระหว่างช่วงปฏิบัติภารกิจ
     return 'in_progress';
   } else {
-    // ถึงเวลาสิ้นสุด -> เสร็จสิ้น
+    // สิ้นสุดภารกิจแล้ว
     return 'completed';
   }
 }
@@ -172,61 +206,62 @@ export function getMissionCountdown(
   const todayStr = getTodayDateString(now);
   const effectiveEndDate = endDateStr || startDateStr;
 
-  // If in future dates
-  if (startDateStr > todayStr) {
-    const start = new Date(startDateStr + 'T00:00:00');
-    const today = new Date(todayStr + 'T00:00:00');
-    const diffDays = Math.ceil((start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return { text: `ในอีก ${diffDays} วัน`, state: 'future' };
-  }
-
-  // If in past dates -> เสร็จสิ้น
+  // 1. If entire mission date range is in the past
   if (effectiveEndDate < todayStr) {
     return { text: 'เสร็จสิ้นแล้ว', state: 'completed' };
   }
 
-  // Date is today!
-  if (!startTimeStr) {
-    return { text: 'กำลังดำเนินการ', state: 'ongoing' };
-  }
+  // Exact start and end boundaries
+  const [sY, sM, sD] = startDateStr.split('-').map(Number);
+  const [sH, sMin] = startTimeStr ? startTimeStr.split(':').map(Number) : [0, 0];
+  const startDateTime = new Date(sY, sM - 1, sD, sH || 0, sMin || 0, 0, 0);
 
-  const [startHour, startMin] = startTimeStr.split(':').map(Number);
-  const startDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour || 0, startMin || 0, 0);
-
-  let endDateTime: Date | null = null;
+  const [eY, eM, eD] = effectiveEndDate.split('-').map(Number);
+  let endDateTime: Date;
   if (endTimeStr) {
-    const [endHour, endMin] = endTimeStr.split(':').map(Number);
-    endDateTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), endHour || 0, endMin || 0, 0);
-  } else {
-    // Default 1 hour duration
+    const [eH, eMin] = endTimeStr.split(':').map(Number);
+    endDateTime = new Date(eY, eM - 1, eD, eH || 0, eMin || 0, 0, 0);
+  } else if (startTimeStr && effectiveEndDate === startDateStr) {
     endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
+  } else {
+    endDateTime = new Date(eY, eM - 1, eD, 23, 59, 59, 999);
   }
 
-  const diffMs = startDateTime.getTime() - now.getTime();
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const nowTime = now.getTime();
 
-  // Case 1: ก่อนถึงเวลา (ยังไม่เริ่ม) -> นับถอยหลัง "ในอีก ... ชม." ตามภาพสเก็ตช์
-  if (diffMinutes > 0) {
-    const hours = Math.floor(diffMinutes / 60);
-    const mins = diffMinutes % 60;
+  // If already past endDateTime
+  if (nowTime > endDateTime.getTime()) {
+    return { text: 'เสร็จสิ้นแล้ว', state: 'completed' };
+  }
 
-    let countdownText = '';
-    if (hours > 0) {
-      countdownText = mins > 0 ? `ในอีก ${hours} ชม. ${mins} นาที` : `ในอีก ${hours} ชม.`;
-    } else {
-      countdownText = `ในอีก ${mins} นาที`;
+  // If before startDateTime
+  if (nowTime < startDateTime.getTime()) {
+    // If starts in future dates
+    if (startDateStr > todayStr) {
+      const today = new Date(todayStr + 'T00:00:00');
+      const startDay = new Date(startDateStr + 'T00:00:00');
+      const diffDays = Math.ceil((startDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return { text: `ในอีก ${diffDays} วัน`, state: 'future' };
     }
 
-    return { text: countdownText, state: 'upcoming', minutesLeft: diffMinutes };
+    // Starts today in the future
+    const diffMs = startDateTime.getTime() - nowTime;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    if (diffMinutes > 0) {
+      const hours = Math.floor(diffMinutes / 60);
+      const mins = diffMinutes % 60;
+      let countdownText = '';
+      if (hours > 0) {
+        countdownText = mins > 0 ? `ในอีก ${hours} ชม. ${mins} นาที` : `ในอีก ${hours} ชม.`;
+      } else {
+        countdownText = `ในอีก ${mins} นาที`;
+      }
+      return { text: countdownText, state: 'upcoming', minutesLeft: diffMinutes };
+    }
   }
 
-  // Case 2: เริ่มงานเมื่อถึงเวลา -> "กำลังดำเนินการ" (ไม่ใส่เวลานับถอยหลัง เพราะเวลานับถอยหลัง 'ในอีก...' เป็นห้วงเวลาก่อนเริ่มงาน)
-  if (endDateTime && now.getTime() <= endDateTime.getTime()) {
-    return { text: 'กำลังดำเนินการ', state: 'ongoing', minutesLeft: 0 };
-  }
-
-  // Case 3: เสร็จสิ้นเมื่อถึงเวลานั้น -> "เสร็จสิ้นแล้ว"
-  return { text: 'เสร็จสิ้นแล้ว', state: 'completed' };
+  // Currently active / in progress
+  return { text: 'กำลังดำเนินการ', state: 'ongoing', minutesLeft: 0 };
 }
 
 /**

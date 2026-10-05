@@ -7,6 +7,7 @@ import {
   formatThaiDateFull,
   formatThaiDateWithDay,
   getTodayDateString,
+  getDatesInRange,
   sortMissionsForDisplay,
   copyTextToClipboard,
   formatDayMissionsForLine
@@ -54,17 +55,16 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
   // Group missions or filter
   const displayedMissions = useMemo(() => {
     return missions.filter((m) => {
+      const end = m.end_date || m.start_date;
       // Exclude or include based on mode
       if (dateFilterMode === 'tomorrow') {
-        const end = m.end_date || m.start_date;
         return m.start_date <= tomorrowDateStr && end >= tomorrowDateStr;
       }
       if (dateFilterMode === 'specific' && selectedDate) {
-        const end = m.end_date || m.start_date;
         return m.start_date <= selectedDate && end >= selectedDate;
       }
       if (dateFilterMode === 'upcoming') {
-        return m.start_date > todayDateStr;
+        return end > todayDateStr;
       }
       // 'all'
       return true;
@@ -78,22 +78,43 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
         (m.assignee || '').toLowerCase().includes(term)
       );
     });
-  }, [missions, dateFilterMode, selectedDate, todayDateStr, searchTerm]);
+  }, [missions, dateFilterMode, tomorrowDateStr, selectedDate, todayDateStr, searchTerm]);
 
-  // Group missions by start_date for nice chronological presentation
+  // Group missions by each active date in the range for nice chronological presentation
   const groupedByDate = useMemo(() => {
     const map = new Map<string, Mission[]>();
+
     for (const m of displayedMissions) {
-      const key = m.start_date;
-      if (!map.has(key)) {
-        map.set(key, []);
+      if (dateFilterMode === 'tomorrow') {
+        const key = tomorrowDateStr;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(m);
+      } else if (dateFilterMode === 'specific' && selectedDate) {
+        const key = selectedDate;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key)!.push(m);
+      } else if (dateFilterMode === 'upcoming') {
+        const dates = getDatesInRange(m.start_date, m.end_date);
+        for (const d of dates) {
+          if (d > todayDateStr) {
+            if (!map.has(d)) map.set(d, []);
+            map.get(d)!.push(m);
+          }
+        }
+      } else {
+        // 'all'
+        const dates = getDatesInRange(m.start_date, m.end_date);
+        for (const d of dates) {
+          if (!map.has(d)) map.set(d, []);
+          map.get(d)!.push(m);
+        }
       }
-      map.get(key)!.push(m);
     }
+
     return Array.from(map.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, list]) => [date, sortMissionsForDisplay(list, now)] as [string, Mission[]]);
-  }, [displayedMissions, now]);
+  }, [displayedMissions, dateFilterMode, tomorrowDateStr, selectedDate, todayDateStr, now]);
 
   const [copiedDate, setCopiedDate] = useState<string | null>(null);
 
@@ -258,7 +279,7 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
               <div className="space-y-3">
                 {items.map((mission) => (
                   <MissionCard
-                    key={mission.id}
+                    key={`${dateKey}-${mission.id}`}
                     mission={mission}
                     now={now}
                     onEdit={onEdit}
