@@ -91,16 +91,28 @@ function populateSlideXml(slideXmlTemplate, slideMissions, startOrderNum, isFirs
       const locGroup1 = ['ห้องประชุม อย.1', 'ห้องประชุม อย.3', 'ห้องประชุม ศยพ.ศปก.ทอ.'];
       const locGroup2 = ['ห้องประชุม อย.2', 'โรงเลี้ยง พัน.2 กรม ปพ.อย.', 'ลานอเนกประสงค์ อาคารรณนภากาศ', 'ห้องโถง บก.อย.', 'หอพระไพรีพินาศ'];
       
-      if (locGroup1.some(l => loc.includes(l))) {
-        prefix = 'สนับสนุน จนท.ควบคุมห้องประชุม ';
-      } else if (locGroup2.some(l => loc.includes(l))) {
-        prefix = 'สนับสนุน จนท.และจัดเครื่องขยายเสียง ';
+      if (!m._fixedRow) {
+        if (locGroup1.some(l => loc.includes(l))) {
+          prefix = 'สนับสนุน จนท.ควบคุมห้องประชุม ';
+        } else if (locGroup2.some(l => loc.includes(l))) {
+          prefix = 'สนับสนุน จนท.และจัดเครื่องขยายเสียง ';
+        } else {
+          prefix = 'สนับสนุน จนท. ';
+        }
       }
 
-      const missionText = `${prefix}${m.title || ''}${
-        m.location && !m.title?.includes(m.location) ? ', ' + m.location : ''
-      }`;
-      const dateText = formatThaiDateRangePpt(m.start_date, m.end_date);
+      // 1. Remove location text, only show prefix + title
+      const missionText = `${prefix}${m.title || ''}`;
+      const dateText = m.dateTextOverride || formatThaiDateRangePpt(m.start_date, m.end_date);
+
+      // Check if future mission (isFuture)
+      let isFuture = false;
+      if (!m._fixedRow && m.start_date) {
+        const todayStr = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Bangkok' }).split(',')[0];
+        if (m.start_date > todayStr) {
+          isFuture = true;
+        }
+      }
 
       // Cell 0: ลำดับ
       cells[0] = cells[0].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun(orderStr));
@@ -108,20 +120,26 @@ function populateSlideXml(slideXmlTemplate, slideMissions, startOrderNum, isFirs
       cells[1] = cells[1].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun(missionText));
       // Cell 2: วันที่ปฏิบัติ
       cells[2] = cells[2].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun(dateText));
-      // Cell 3: เรียบร้อย (√)
-      if (rowIdx === 2 && isFirstSlide) {
-        // Row 2 on first slide already has √ in the template
+      
+      // Cell 3 (เรียบร้อย), Cell 4 (ไม่เรียบร้อย), Cell 5 (หมายเหตุ)
+      if (isFuture) {
+        if (cells[3].includes('<a:t>√</a:t>')) {
+           cells[3] = cells[3].replace('<a:t>√</a:t>', '<a:t>-</a:t>');
+        } else {
+           cells[3] = cells[3].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun('-'));
+        }
+        if (cells[4]) cells[4] = cells[4].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun('-'));
+        if (cells[5]) cells[5] = cells[5].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun('อยู่ระหว่างเตรียมการ'));
       } else {
-        cells[3] = cells[3].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun('√'));
+        if (!cells[3].includes('<a:t>√</a:t>')) {
+           cells[3] = cells[3].replace(/<a:endParaRPr[\s\S]*?<\/a:endParaRPr>/, makeTextRun('√'));
+        }
+        // Template row 2 cell 3 might be cloned, so check for empty cells in other rows
       }
     } else {
       // Empty row
-      if (rowIdx === 2 && isFirstSlide && !slideMissions[0]) {
-        // If first slide has 0 missions, remove existing √ from template
-        const endParaXml = `<a:endParaRPr kumimoji="0" lang="en-US" altLang="th-TH" sz="2000" b="0" i="0" u="none" strike="noStrike" cap="none" normalizeH="0" baseline="0" dirty="0"><a:ln><a:noFill/></a:ln><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:effectLst/><a:latin typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/><a:cs typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/></a:endParaRPr>`;
-        cells[3] = cells[3].replace(/<a:r>[\s\S]*?<\/a:r>/, endParaXml);
-      } else if (rowIdx === 2 && !isFirstSlide) {
-        // Cloned slides start with √ on row 2, remove if no mission in this slot
+      if (cells[3] && cells[3].includes('<a:t>√</a:t>')) {
+        // Clear checkmark from empty cloned rows
         const endParaXml = `<a:endParaRPr kumimoji="0" lang="en-US" altLang="th-TH" sz="2000" b="0" i="0" u="none" strike="noStrike" cap="none" normalizeH="0" baseline="0" dirty="0"><a:ln><a:noFill/></a:ln><a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:effectLst/><a:latin typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/><a:cs typeface="TH SarabunPSK" panose="020B0500040200020003" pitchFamily="34" charset="-34"/></a:endParaRPr>`;
         cells[3] = cells[3].replace(/<a:r>[\s\S]*?<\/a:r>/, endParaXml);
       }
@@ -141,6 +159,22 @@ function populateSlideXml(slideXmlTemplate, slideMissions, startOrderNum, isFirs
  * @returns {Promise<Buffer>}
  */
 export async function generatePptxReport(missions = []) {
+  // Requirement 4 & 5: Always add 2 fixed missions at the top
+  const fixedMission1 = {
+    _fixedRow: true,
+    title: 'สนับสนุน จนท.ควบคุมห้องประชุม ศปก.อย.เขตพระราชฐาน พระตำหนักที่ประทับ ๙๐๔ ดอนเมือง',
+    start_date: 'FIXED1',
+    dateTextOverride: 'ทุกวัน เวลา ๐๗๐๐',
+  };
+  const fixedMission2 = {
+    _fixedRow: true,
+    title: 'สนับสนุน จนท.จัดเครื่องเสียงเคารพธงชาติ',
+    start_date: 'FIXED2',
+    dateTextOverride: 'ทุกวันราชการ เวลา ๐๗๓๐',
+  };
+  
+  missions = [fixedMission1, fixedMission2, ...missions];
+
   const desktopPath = 'C:\\Users\\ICTSFC1\\Desktop\\แอพภารกิจ ผสส\\temppt.pptx';
   const fallbackPath = path.join(__dirname, 'templates', 'temppt.pptx');
 
