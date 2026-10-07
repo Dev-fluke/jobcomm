@@ -5,7 +5,8 @@ import {
   TableProperties,
   Shield,
   Radio,
-  Bell
+  Bell,
+  CalendarDays
 } from 'lucide-react';
 import type { ActiveTab } from '../types';
 
@@ -35,6 +36,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       label: 'ภารกิจวันนี้',
       sublabel: 'รายการภารกิจประจำวันและการติดตามเวลา',
       icon: CalendarCheck
+    },
+    {
+      id: 'calendar' as ActiveTab,
+      label: 'ปฏิทินรายเดือน',
+      sublabel: 'ดูภาพรวมและจำนวนภารกิจตลอดเดือน',
+      icon: CalendarDays
     },
     {
       id: 'table' as ActiveTab,

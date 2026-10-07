@@ -10,6 +10,7 @@ import { TvDisplayView } from './components/TvDisplayView';
 import { DesktopTableView } from './components/DesktopTableView';
 import { EditMissionModal } from './components/EditMissionModal';
 import { LineSettingsView } from './components/LineSettingsView';
+import { CalendarView } from './components/CalendarView';
 import { LoadingScreen } from './components/LoadingScreen';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -368,6 +369,21 @@ export function App() {
           <LineSettingsView
             onToast={showToast}
             onBack={() => setActiveTab('today')}
+          />
+        )}
+
+        {activeTab === 'calendar' && (
+          <CalendarView
+            missions={missions}
+            todayDateStr={todayDateStr}
+            onDateClick={(dateStr) => {
+              // When clicking a date on the calendar, we could set addMissionDatePrefill and switch to 'other' or 'add'
+              // Or maybe just switch to 'other' view and the user can see it?
+              // Actually, since 'other' groups by date, maybe we don't have a way to scroll to it easily.
+              // Let's just switch to 'add' for that date if they want to add a mission, 
+              // or stay in calendar. We will let them switch to 'other' tab for now.
+              setActiveTab('other');
+            }}
           />
         )}
       </main>

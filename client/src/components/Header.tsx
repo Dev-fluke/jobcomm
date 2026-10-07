@@ -109,6 +109,19 @@ export const Header: React.FC<HeaderProps> = ({
               <span>วันอื่นๆ</span>
             </button>
 
+            {/* Calendar Tab */}
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`w-28 sm:w-36 flex items-center justify-center px-2 text-sm sm:text-base font-medium transition-all ${
+                activeTab === 'calendar'
+                  ? 'bg-blue-50/50 text-blue-950 font-bold border-b-4 border-b-blue-800'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Calendar className="w-4 h-4 mr-1.5 hidden sm:inline text-slate-500" />
+              <span>ปฏิทิน</span>
+            </button>
+
             {/* Quick Add Button */}
             <button
               onClick={() => setActiveTab('add')}
