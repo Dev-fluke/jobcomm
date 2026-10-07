@@ -1150,6 +1150,58 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
+// --- Analytics API ---
+let currentVisitsDate = '';
+let currentVisitsCount = 0;
+
+async function loadVisits() {
+  const today = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Bangkok' }).split(',')[0];
+  currentVisitsDate = today;
+  try {
+    const { categories } = await getPresets();
+    const existing = categories?.find(p => p.name?.startsWith(`VISITS:${today}:`));
+    if (existing) {
+      currentVisitsCount = parseInt(existing.name.split(':')[2], 10) || 0;
+    } else {
+      currentVisitsCount = 0;
+    }
+  } catch (e) { console.error('Failed to load visits:', e); }
+}
+
+loadVisits();
+
+app.post('/api/visits', async (req, res) => {
+  const today = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Bangkok' }).split(',')[0];
+  if (today !== currentVisitsDate) {
+    currentVisitsDate = today;
+    currentVisitsCount = 0;
+  }
+  currentVisitsCount++;
+  
+  res.json({ success: true, count: currentVisitsCount });
+  
+  try {
+    const { categories } = await getPresets();
+    const existing = categories?.find(p => p.name?.startsWith(`VISITS:${today}:`));
+    if (existing) {
+      await updatePreset('categories', existing.id, { name: `VISITS:${today}:${currentVisitsCount}` });
+    } else {
+      await addPreset('categories', { name: `VISITS:${today}:${currentVisitsCount}` });
+    }
+  } catch (e) {}
+});
+
+app.get('/api/visits', async (req, res) => {
+  const today = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Bangkok' }).split(',')[0];
+  if (today !== currentVisitsDate) {
+    currentVisitsDate = today;
+    currentVisitsCount = 0;
+    loadVisits();
+  }
+  res.json({ date: today, count: currentVisitsCount });
+});
+// ---------------------
+
 app.listen(PORT, () => {
   console.log(`🚀 JobComm Server running at http://localhost:${PORT}`);
 });

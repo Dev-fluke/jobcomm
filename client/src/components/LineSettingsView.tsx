@@ -12,7 +12,8 @@ import {
   Check,
   Lock,
   KeyRound,
-  ArrowLeft
+  ArrowLeft,
+  Users
 } from 'lucide-react';
 
 
@@ -40,6 +41,8 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
   const [hasSecret, setHasSecret] = useState<boolean>(false);
   const [groupId, setGroupId] = useState<string | null>(null);
 
+  const [visitCount, setVisitCount] = useState<number | null>(null);
+
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<boolean>(false);
@@ -60,8 +63,14 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
         if (data.notifyOnAdd !== undefined) setNotifyOnAdd(data.notifyOnAdd);
         if (data.notifyOnHolidays !== undefined) setNotifyOnHolidays(data.notifyOnHolidays);
       }
+
+      const visitRes = await fetch(`${API_BASE}/visits`);
+      if (visitRes.ok) {
+        const visitData = await visitRes.json();
+        setVisitCount(visitData.count);
+      }
     } catch (err) {
-      console.error('Error fetching LINE status:', err);
+      console.error('Error fetching status:', err);
     } finally {
       setIsLoading(false);
     }
@@ -212,14 +221,22 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
           </div>
         </div>
 
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline underline-offset-4"
-          >
-            กลับหน้าหลัก
-          </button>
-        )}
+        <div className="flex flex-col items-end gap-2">
+          {visitCount !== null && (
+            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-800 px-3 py-1.5 rounded-full border border-blue-200">
+              <Users className="w-4 h-4" />
+              <span className="text-xs font-bold">เข้าชมวันนี้: {visitCount} คน</span>
+            </div>
+          )}
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="text-xs text-blue-700 hover:text-blue-900 font-semibold underline underline-offset-4"
+            >
+              กลับหน้าหลัก
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Main Settings Card */}

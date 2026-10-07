@@ -56,6 +56,11 @@ export function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Track visit on app mount
+  useEffect(() => {
+    fetch(`${API_BASE}/visits`, { method: 'POST' }).catch(() => {});
+  }, []);
+
   // Fetch all missions, today's missions, and stats
   const fetchData = useCallback(async () => {
     try {
