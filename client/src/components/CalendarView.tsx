@@ -72,22 +72,22 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ missions, todayDateS
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center">
+        <div className="flex items-center justify-center md:justify-start gap-3">
+          <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
             <CalendarIcon className="w-6 h-6" />
           </div>
-          <div>
+          <div className="text-center md:text-left">
             <h1 className="text-xl font-bold text-slate-800">ปฏิทินภารกิจ</h1>
             <p className="text-sm text-slate-500">ดูภาพรวมภารกิจตลอดทั้งเดือน</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <button onClick={handlePrevMonth} className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
             <ChevronLeft className="w-5 h-5" />
           </button>
           
-          <div className="px-4 py-2 bg-blue-50 text-blue-800 font-bold rounded-lg min-w-[160px] text-center border border-blue-100">
+          <div className="px-4 py-2 bg-blue-50 text-blue-800 font-bold rounded-lg min-w-[140px] text-center border border-blue-100">
             {THAI_MONTHS[currentMonth]} {currentYear + 543}
           </div>
 
@@ -95,22 +95,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ missions, todayDateS
             <ChevronRight className="w-5 h-5" />
           </button>
 
-          <button onClick={handleToday} className="ml-2 px-4 py-2 text-sm font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+          <button onClick={handleToday} className="w-full md:w-auto mt-2 md:mt-0 ml-0 md:ml-2 px-4 py-2 text-sm font-semibold bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
             เดือนปัจจุบัน
           </button>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-          {DAYS_OF_WEEK.map((day, idx) => (
-            <div key={day} className={`py-3 text-center text-sm font-bold ${idx === 0 || idx === 6 ? 'text-red-600' : 'text-slate-600'}`}>
-              {day}
+        <div className="overflow-x-auto touch-pan-x">
+          <div className="min-w-[800px]">
+            <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+              {DAYS_OF_WEEK.map((day, idx) => (
+                <div key={day} className={`py-3 text-center text-sm font-bold ${idx === 0 || idx === 6 ? 'text-red-600' : 'text-slate-600'}`}>
+                  {day}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="grid grid-cols-7 auto-rows-fr">
+            <div className="grid grid-cols-7 auto-rows-fr">
           {calendarDays.map((dayObj, idx) => {
             if (!dayObj) return <div key={`empty-${idx}`} className="min-h-[120px] bg-slate-50/50 border-r border-b border-slate-100 last:border-r-0" />;
 
@@ -164,6 +166,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ missions, todayDateS
               </div>
             );
           })}
+        </div>
+          </div>
         </div>
       </div>
     </div>
