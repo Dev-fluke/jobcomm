@@ -376,12 +376,8 @@ export function App() {
           <CalendarView
             missions={missions}
             todayDateStr={todayDateStr}
+            onEdit={(m) => setEditingMission(m)}
             onDateClick={(dateStr) => {
-              // When clicking a date on the calendar, we could set addMissionDatePrefill and switch to 'other' or 'add'
-              // Or maybe just switch to 'other' view and the user can see it?
-              // Actually, since 'other' groups by date, maybe we don't have a way to scroll to it easily.
-              // Let's just switch to 'add' for that date if they want to add a mission, 
-              // or stay in calendar. We will let them switch to 'other' tab for now.
               setActiveTab('other');
             }}
           />

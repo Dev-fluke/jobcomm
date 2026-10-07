@@ -6,6 +6,7 @@ interface CalendarViewProps {
   missions: Mission[];
   todayDateStr: string;
   onDateClick: (dateStr: string) => void;
+  onEdit: (mission: Mission) => void;
 }
 
 const THAI_MONTHS = [
@@ -15,7 +16,7 @@ const THAI_MONTHS = [
 
 const DAYS_OF_WEEK = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ missions, todayDateStr, onDateClick }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ missions, todayDateStr, onDateClick, onEdit }) => {
   const initialDate = new Date(todayDateStr);
   const [currentYear, setCurrentYear] = useState(initialDate.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(initialDate.getMonth());
@@ -142,7 +143,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ missions, todayDateS
                     return (
                       <div 
                         key={m.id}
-                        className={`text-[11px] px-1.5 py-1 rounded border leading-tight truncate ${isCompleted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:text-blue-700'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(m);
+                        }}
+                        className={`text-[11px] px-1.5 py-1 rounded border leading-tight truncate cursor-pointer ${isCompleted ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:text-blue-700'}`}
                         title={m.title}
                       >
                         {m.start_time ? <span className="font-semibold mr-1">{m.start_time}</span> : null}
