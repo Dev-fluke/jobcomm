@@ -51,7 +51,6 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
   const [notifyEnabled, setNotifyEnabled] = useState<boolean>(true);
   const [notifyOnEmpty, setNotifyOnEmpty] = useState<boolean>(true);
   const [notifyOnAdd, setNotifyOnAdd] = useState<boolean>(false);
-  const [notifyOnHolidays, setNotifyOnHolidays] = useState<boolean>(true);
   const [hasToken, setHasToken] = useState<boolean>(false);
   const [hasSecret, setHasSecret] = useState<boolean>(false);
   const [groupId, setGroupId] = useState<string | null>(null);
@@ -78,7 +77,6 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
         if (data.notifyEnabled !== undefined) setNotifyEnabled(data.notifyEnabled);
         if (data.notifyOnEmpty !== undefined) setNotifyOnEmpty(data.notifyOnEmpty);
         if (data.notifyOnAdd !== undefined) setNotifyOnAdd(data.notifyOnAdd);
-        if (data.notifyOnHolidays !== undefined) setNotifyOnHolidays(data.notifyOnHolidays);
       }
 
       const visitRes = await fetch(`${API_BASE}/visits`);
@@ -104,7 +102,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
       const res = await fetch(`${API_BASE}/line/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays })
+        body: JSON.stringify({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd })
       });
 
       if (res.ok) {
@@ -328,28 +326,6 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
           </label>
         </div>
 
-        {/* Toggle On/Off Switch: ส่งข้อความแจ้งเตือนกรณีตรงกับวันหยุดราชการ */}
-        <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border border-slate-200">
-          <div>
-            <span className="font-semibold text-sm text-slate-800 block">
-              ส่งสรุปงานในวันหยุด (เสาร์-อาทิตย์)
-            </span>
-            <span className="text-xs text-slate-500">
-              {notifyOnHolidays
-                ? 'เปิดใช้งาน: ระบบจะส่งสรุปงานตามปกติในวันเสาร์และอาทิตย์'
-                : 'ปิดใช้งาน: ระบบจะไม่ส่งสรุปงานในวันเสาร์และอาทิตย์'}
-            </span>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notifyOnHolidays}
-              onChange={(e) => setNotifyOnHolidays(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-800"></div>
-          </label>
-        </div>
 
         {/* Time Selection */}
         <div className="space-y-3">

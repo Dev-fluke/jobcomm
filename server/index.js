@@ -1194,17 +1194,6 @@ async function setupDailyCronJob() {
       }
 
       const todayStr = getBangkokDateString();
-
-      // Check for weekends (Saturday/Sunday) if notifyOnHolidays is false
-      if (!activeConfig.notifyOnHolidays) {
-        const d = new Date(todayStr + 'T00:00:00Z');
-        const dayOfWeek = d.getUTCDay(); // 0 = Sun, 6 = Sat
-        if (dayOfWeek === 0 || dayOfWeek === 6) {
-          console.log(`ℹ️ [CRON ${notifyTime}] Skipped: Today (${todayStr}) is a weekend and notifyOnHolidays is disabled.`);
-          return;
-        }
-      }
-
       const missions = await getTodayMissions(todayStr);
 
       // Check if no missions and notifyOnEmpty is false -> skip sending
