@@ -20,23 +20,16 @@ import {
 } from 'lucide-react';
 
 
-interface LineBotInfo {
-  id: number;
-  source: string;
-  tokenPreview: string;
-  hasToken: boolean;
-  limit: number | string;
-  totalUsage: number | null;
-  isExceeded: boolean;
-  groupMemberCount: number | null;
-}
-
 interface LineQuota {
   type: string;
   limit: number | string;
   totalUsage: number | null;
+  remaining: number | null;
+  percentage: number;
   groupMemberCount: number | null;
+  remainingDays: number | null;
   isExceeded: boolean;
+  isNearLimit: boolean;
 }
 
 interface LineSettingsViewProps {
@@ -63,11 +56,6 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
   const [hasSecret, setHasSecret] = useState<boolean>(false);
   const [groupId, setGroupId] = useState<string | null>(null);
   const [quota, setQuota] = useState<LineQuota | null>(null);
-  const [bots, setBots] = useState<LineBotInfo[]>([]);
-  const [activeBotId, setActiveBotId] = useState<number>(1);
-  const [allExceeded, setAllExceeded] = useState<boolean>(false);
-  const [showTokenManager, setShowTokenManager] = useState<boolean>(false);
-  const [botTokens, setBotTokens] = useState<string[]>(['', '', '', '']);
 
   const [visitCount, setVisitCount] = useState<number | null>(null);
 
@@ -86,9 +74,6 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
         setHasSecret(data.hasSecret);
         setGroupId(data.groupId);
         if (data.quota) setQuota(data.quota);
-        if (data.bots) setBots(data.bots);
-        if (data.activeBotId) setActiveBotId(data.activeBotId);
-        if (data.allExceeded !== undefined) setAllExceeded(data.allExceeded);
         if (data.notifyTime) setNotifyTime(data.notifyTime);
         if (data.notifyEnabled !== undefined) setNotifyEnabled(data.notifyEnabled);
         if (data.notifyOnEmpty !== undefined) setNotifyOnEmpty(data.notifyOnEmpty);
@@ -116,22 +101,14 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      const hasCustomTokens = botTokens.some(t => t.trim().length > 0);
       const res = await fetch(`${API_BASE}/line/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notifyTime,
-          notifyEnabled,
-          notifyOnEmpty,
-          notifyOnAdd,
-          notifyOnHolidays,
-          tokens: hasCustomTokens ? botTokens : undefined
-        })
+        body: JSON.stringify({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays })
       });
 
       if (res.ok) {
-        onToast?.('บันทึกการตั้งค่าและรายการบอทเรียบร้อยแล้ว', 'success');
+        onToast?.('บันทึกการตั้งค่าเรียบร้อยแล้ว', 'success');
         fetchStatus();
       } else {
         throw new Error('ไม่สามารถบันทึกการตั้งค่าได้');
@@ -463,7 +440,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
             {groupId ? (
               <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5" /> เชื่อมต่อแล้ว ({groupId.slice(0, 8)}...)
-                {quota?.groupMemberCount ? ` [${quota.groupMemberCount} สมาชิก]` : ''}
+                {quota?.groupMemberCount ? ` [สมาชิก ${quota.groupMemberCount} คน]` : ''}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-amber-600 font-semibold">
@@ -472,159 +449,103 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
             )}
           </div>
 
-          {/* Multi-bot rotation status list */}
-          <div className="space-y-2 pt-1">
-            <div className="flex items-center justify-between text-slate-700 font-semibold">
-              <span className="flex items-center gap-1.5">
-                <Bot className="w-4 h-4 text-blue-700" />
-                <span>สถานะบอทในระบบ ({bots.length > 0 ? `${bots.length} ตัว` : 'ยังไม่มีบอท'}):</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowTokenManager(!showTokenManager)}
-                className="text-[11px] text-blue-700 hover:text-blue-900 font-bold flex items-center gap-1 underline underline-offset-2"
-              >
-                <span>{showTokenManager ? 'ซ่อนช่องกรอก Token' : '+ เพิ่ม/แก้ไข Token บอทสำรอง'}</span>
-                {showTokenManager ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-
-            {bots.length > 0 ? (
-              <div className="space-y-1.5">
-                {bots.map((b) => {
-                  const isActive = b.id === activeBotId && !b.isExceeded;
-                  return (
-                    <div
-                      key={b.id}
-                      className={`p-2.5 rounded-lg border text-xs flex items-center justify-between transition-all ${
-                        b.isExceeded
-                          ? 'bg-red-50/70 border-red-200 text-red-900'
-                          : isActive
-                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-medium shadow-xs'
-                          : 'bg-slate-50 border-slate-200 text-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] ${
-                          b.isExceeded
-                            ? 'bg-red-200 text-red-800'
-                            : isActive
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-slate-200 text-slate-700'
-                        }`}>
-                          {b.id}
-                        </span>
-                        <div>
-                          <span className="font-bold">บอทตัวที่ {b.id}</span>
-                          <span className="text-[11px] text-slate-400 font-mono ml-1.5">({b.tokenPreview})</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 font-semibold">
-                        <span>{b.totalUsage ?? 0} / {b.limit} ข้อความ</span>
-                        {b.isExceeded ? (
-                          <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">
-                            ❌ โควตาเต็ม
-                          </span>
-                        ) : isActive ? (
-                          <span className="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded font-bold flex items-center gap-0.5">
-                            🟢 กำลังใช้งาน
-                          </span>
-                        ) : (
-                          <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">
-                            ⏳ รอสลับ
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+          {/* Monthly Quota Indicator Card */}
+          {quota && (
+            <div className={`p-4 rounded-xl border space-y-3 transition-all ${
+              quota.isExceeded
+                ? 'bg-red-50/60 border-red-200'
+                : quota.isNearLimit
+                ? 'bg-amber-50/60 border-amber-200'
+                : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                  <Bot className="w-4 h-4 text-blue-700" />
+                  <span>โควตาส่งข้อความประจำเดือน (LINE Messaging API)</span>
+                </div>
+                {quota.isExceeded ? (
+                  <span className="text-[11px] font-bold bg-red-100 text-red-700 border border-red-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> โควตาเต็มแล้ว ({quota.percentage}%)
+                  </span>
+                ) : quota.isNearLimit ? (
+                  <span className="text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> ใกล้หมดโควตา ({quota.percentage}%)
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> ปกติ ({quota.percentage}%)
+                  </span>
+                )}
               </div>
-            ) : (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-500 text-center">
-                ยังไม่มีการบันทึก Token กรุณากดปุ่ม "+ เพิ่ม/แก้ไข Token บอทสำรอง" ด้านบนครับ
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Token Manager Input Panel */}
-        {showTokenManager && (
-          <div className="p-4 rounded-xl bg-slate-50 border border-blue-200 space-y-3 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-              <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                <Bot className="w-4 h-4 text-blue-700" />
-                <span>กรอก Channel Access Token สำหรับบอทแต่ละตัว (สูงสุด 4 ตัว)</span>
-              </span>
-              <span className="text-[10px] text-slate-500">ระบบจะสลับให้อัตโนมัติเมื่อตัวก่อนหน้าเต็ม</span>
-            </div>
-
-            <div className="space-y-2 text-xs">
-              {[1, 2, 3, 4].map((num, idx) => (
-                <div key={num} className="space-y-1">
-                  <label className="text-[11px] font-semibold text-slate-700 flex items-center justify-between">
-                    <span>บอทตัวที่ {num} {num === 1 ? '(หลัก)' : `(สำรองตัวที่ ${num - 1})`}:</span>
-                    {bots.find(b => b.id === num) && (
-                      <span className="text-[10px] text-emerald-600 font-normal">
-                        ✓ มี Token เดิมอยู่แล้ว (กรอกใหม่หากต้องการเปลี่ยน)
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="password"
-                    value={botTokens[idx] || ''}
-                    onChange={(e) => {
-                      const updated = [...botTokens];
-                      updated[idx] = e.target.value;
-                      setBotTokens(updated);
-                    }}
-                    placeholder={`วาง Channel Access Token ของบอทตัวที่ ${num}...`}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:border-blue-700"
+              {/* Progress bar */}
+              <div className="space-y-1">
+                <div className="w-full bg-slate-200/80 h-2.5 rounded-full overflow-hidden">
+                  <div
+                    style={{ width: `${quota.percentage}%` }}
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      quota.isExceeded
+                        ? 'bg-red-600'
+                        : quota.isNearLimit
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-600'
+                    }`}
                   />
                 </div>
-              ))}
-            </div>
+                <div className="flex justify-between items-center text-[11px] text-slate-500">
+                  <span>ใช้ไปแล้ว {quota.totalUsage ?? 0} ข้อความ</span>
+                  <span>ขีดจำกัด {quota.limit} ข้อความ/เดือน</span>
+                </div>
+              </div>
 
-            <div className="pt-2 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500">กดปุ่ม "บันทึกการตั้งค่า" ด้านบนเพื่อบันทึก Token ทั้งหมด</span>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-3 py-1.5 bg-blue-800 hover:bg-blue-900 text-white rounded-lg font-bold text-xs flex items-center gap-1 transition-all disabled:opacity-50"
-              >
-                {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                <span>บันทึก Token บอท</span>
-              </button>
-            </div>
-          </div>
-        )}
+              {/* Detailed metrics grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-center">
+                <div className="p-2 bg-white rounded-lg border border-slate-200">
+                  <div className="text-[10px] text-slate-500">คงเหลือในเดือนนี้</div>
+                  <div className={`text-sm font-bold ${quota.isExceeded ? 'text-red-600' : 'text-slate-800'}`}>
+                    {quota.remaining !== null ? `${quota.remaining} ข้อความ` : '-'}
+                  </div>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-slate-200">
+                  <div className="text-[10px] text-slate-500">สมาชิกในกลุ่ม</div>
+                  <div className="text-sm font-bold text-slate-800">
+                    {quota.groupMemberCount ? `${quota.groupMemberCount} คน` : '-'}
+                  </div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">(ส่ง 1 ครั้ง = {quota.groupMemberCount ?? 0} ข้อความ)</div>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-slate-200 col-span-2 sm:col-span-1">
+                  <div className="text-[10px] text-slate-500">ส่งได้อีกประมาณ</div>
+                  <div className={`text-sm font-bold ${quota.isExceeded ? 'text-red-600' : 'text-emerald-700'}`}>
+                    {quota.isExceeded ? '0 วัน' : quota.remainingDays !== null ? `~${quota.remainingDays} วัน` : '-'}
+                  </div>
+                </div>
+              </div>
 
-        {/* Warning if all bots exceeded */}
-        {allExceeded && bots.length > 0 && (
-          <div className="p-3.5 rounded-xl bg-red-50 border border-red-300 text-red-900 text-xs space-y-1.5">
-            <div className="flex items-center gap-1.5 font-bold text-red-950">
-              <AlertCircle className="w-4 h-4 text-red-700 shrink-0" />
-              <span>⚠️ บอททุกตัวในระบบโควตาเต็มแล้ว ({bots.length} ตัว)</span>
+              {/* Status Warning / Tip Box */}
+              {quota.isExceeded ? (
+                <div className="p-3 bg-red-100/70 border border-red-200 rounded-lg text-red-900 text-xs space-y-1">
+                  <div className="font-bold flex items-center gap-1 text-red-950">
+                    <AlertCircle className="w-3.5 h-3.5 text-red-700 shrink-0" />
+                    <span>โควตาส่งฟรีเดือนนี้เต็มแล้ว: ระบบส่งอัตโนมัติ 06:00 จะหยุดชั่วคราว</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed pl-4">
+                    โควตาฟรีของ LINE จะรีเซ็ตกลับมาเต็มใหม่ใน <strong>วันที่ 1 ของเดือนถัดไป</strong> อัตโนมัติครับ
+                  </p>
+                  <p className="text-[11px] font-bold text-blue-900 pl-4 pt-0.5">
+                    💡 ฟังก์ชันเสริมฟรีตลอดชีพ: สมาชิกในกลุ่มสามารถพิมพ์คำว่า <code className="bg-white px-1.5 py-0.5 rounded border border-blue-300 font-mono text-blue-950">#ภารกิจ</code> ในกลุ่ม บอทจะตอบกลับการ์ดสรุปภารกิจวันนี้ให้ทันทีโดยไม่เสียโควตาสักข้อความเดียวครับ!
+                  </p>
+                </div>
+              ) : quota.isNearLimit ? (
+                <div className="p-2.5 bg-amber-100/70 border border-amber-300 rounded-lg text-amber-950 text-xs flex items-start gap-1.5">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-700 shrink-0 mt-0.5" />
+                  <p className="text-[11px] leading-relaxed">
+                    <strong>ข้อควรระวัง:</strong> โควตาส่งข้อความของเดือนนี้เหลือน้อยกว่า 25% แล้ว (ส่งต่อได้อีกประมาณ {quota.remainingDays ?? 0} วัน)
+                  </p>
+                </div>
+              ) : null}
             </div>
-            <p className="text-red-900 leading-relaxed pl-5">
-              โควตา 200 ข้อความ/เดือน ของบอททุกตัวถูกใช้งานครบแล้ว คุณสามารถเพิ่มบอทตัวถัดไปในช่องด้านบน หรือรอรีเซ็ตในวันที่ 1 ของเดือนใหม่ครับ
-            </p>
-          </div>
-        )}
-
-        {/* Informative tips if only 1 bot and it exceeded */}
-        {!allExceeded && bots.length === 1 && bots[0]?.isExceeded && (
-          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1.5">
-            <div className="flex items-center gap-1.5 font-bold text-amber-950">
-              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>⚠️ บอทตัวที่ 1 โควตาเต็มแล้ว: แนะนำเพิ่มบอทสำรองตัวที่ 2</span>
-            </div>
-            <p className="text-amber-900 leading-relaxed pl-5">
-              เพียงสมัครบอทตัวที่ 2 ใน LINE Developers แล้วนำ Token มากรอกในช่อง "+ เพิ่ม/แก้ไข Token บอทสำรอง" ด้านบน พร้อมเชิญบอทตัวที่ 2 เข้ากลุ่ม ระบบจะสลับไปส่งด้วยบอทตัวที่ 2 ทันทีอัตโนมัติครับ!
-            </p>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Manual Test Trigger */}
         <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
