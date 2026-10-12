@@ -17,6 +17,14 @@ import {
 } from 'lucide-react';
 
 
+interface LineQuota {
+  type: string;
+  limit: number | string;
+  totalUsage: number | null;
+  groupMemberCount: number | null;
+  isExceeded: boolean;
+}
+
 interface LineSettingsViewProps {
   onToast?: (text: string, type?: 'success' | 'error') => void;
   onBack?: () => void;
@@ -40,6 +48,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
   const [hasToken, setHasToken] = useState<boolean>(false);
   const [hasSecret, setHasSecret] = useState<boolean>(false);
   const [groupId, setGroupId] = useState<string | null>(null);
+  const [quota, setQuota] = useState<LineQuota | null>(null);
 
   const [visitCount, setVisitCount] = useState<number | null>(null);
 
@@ -57,6 +66,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
         setHasToken(data.hasToken);
         setHasSecret(data.hasSecret);
         setGroupId(data.groupId);
+        if (data.quota) setQuota(data.quota);
         if (data.notifyTime) setNotifyTime(data.notifyTime);
         if (data.notifyEnabled !== undefined) setNotifyEnabled(data.notifyEnabled);
         if (data.notifyOnEmpty !== undefined) setNotifyOnEmpty(data.notifyOnEmpty);
@@ -111,13 +121,15 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
       });
 
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         onToast?.('ส่งข้อความทดสอบเข้ากลุ่ม LINE สำเร็จแล้ว!', 'success');
+        fetchStatus();
       } else {
         throw new Error(data.error || 'ส่งข้อความไม่สำเร็จ');
       }
     } catch (err: any) {
       onToast?.(err.message || 'ส่งข้อความไม่สำเร็จ กรุณาตรวจสอบรหัสกลุ่มและการตั้งค่า', 'error');
+      fetchStatus();
     } finally {
       setIsTesting(false);
     }
@@ -420,6 +432,7 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
             {groupId ? (
               <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5" /> เชื่อมต่อแล้ว ({groupId.slice(0, 8)}...)
+                {quota?.groupMemberCount ? ` [${quota.groupMemberCount} คน]` : ''}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 text-amber-600 font-semibold">
@@ -427,7 +440,47 @@ export const LineSettingsView: React.FC<LineSettingsViewProps> = ({ onToast, onB
               </span>
             )}
           </div>
+
+          {quota && (
+            <div className={`p-2.5 rounded-lg border flex items-center justify-between ${
+              quota.isExceeded
+                ? 'bg-red-50 border-red-200 text-red-900'
+                : 'bg-slate-50 border-slate-200 text-slate-800'
+            }`}>
+              <div className="flex items-center gap-1.5 font-medium">
+                <span>โควตาส่งข้อความเดือนนี้:</span>
+              </div>
+              <div className="flex items-center gap-1.5 font-semibold">
+                {quota.isExceeded ? (
+                  <span className="inline-flex items-center gap-1 text-red-700 font-bold bg-red-100 px-2 py-0.5 rounded">
+                    <AlertCircle className="w-3.5 h-3.5" /> {quota.totalUsage} / {quota.limit} (เต็มแล้ว)
+                  </span>
+                ) : (
+                  <span className="text-slate-700">
+                    {quota.totalUsage ?? 0} / {quota.limit} ข้อความ
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
+        {quota?.isExceeded && (
+          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-amber-950">
+              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>⚠️ สาเหตุที่บอทไม่ส่งข้อความ: โควตาส่งข้อความฟรีของ LINE เต็มแล้ว</span>
+            </div>
+            <p className="text-amber-900 leading-relaxed pl-5">
+              LINE Official Account แพ็กเกจฟรี (Free Tier) กำหนดโควตาส่งข้อความผ่าน Messaging API ไว้ที่ <strong>200 ข้อความต่อเดือน</strong>
+              {quota.groupMemberCount ? ` และเนื่องจากกลุ่มนี้มีสมาชิก ${quota.groupMemberCount} คน การส่งข้อความเข้ากลุ่ม 1 ครั้งจะถูก LINE นับเป็น ${quota.groupMemberCount} ข้อความ ทำให้โควตาเดือนนี้ถูกใช้หมดแล้วครับ` : ' ทำให้บอทไม่สามารถส่งข้อความใหม่เข้ากลุ่มได้ชั่วคราว'}
+            </p>
+            <div className="pl-5 pt-1 text-[11px] text-amber-800 space-y-0.5">
+              <p>• <strong>แนวทางแก้ไข:</strong> โควตาจะรีเซ็ตส่งฟรีใหม่ในวันที่ 1 ของเดือนถัดไปอัตโนมัติ</p>
+              <p>• หรือหากต้องการให้ส่งต่อได้ทันที สามารถอัปเกรดแพ็กเกจเป็น Basic ใน <a href="https://manager.line.biz/" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700">LINE Official Account Manager</a> หรือนำ Channel Access Token จาก LINE OA บัญชีอื่นมาใส่แทนได้ครับ</p>
+            </div>
+          </div>
+        )}
 
         {/* Manual Test Trigger */}
         <div className="pt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

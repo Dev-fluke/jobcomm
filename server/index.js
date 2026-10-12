@@ -1007,6 +1007,41 @@ app.post('/api/line/webhook', async (req, res) => {
   }
 });
 
+// Get LINE Messaging API quota and consumption info
+async function getLineQuotaInfo(groupId) {
+  const token = process.env.LINE_ACCESS_TOKEN;
+  if (!token) return null;
+
+  try {
+    const headers = { 'Authorization': `Bearer ${token}` };
+    const [quotaRes, usageRes, memberRes] = await Promise.all([
+      fetch('https://api.line.me/v2/bot/message/quota', { headers }).catch(() => null),
+      fetch('https://api.line.me/v2/bot/message/quota/consumption', { headers }).catch(() => null),
+      groupId ? fetch(`https://api.line.me/v2/bot/group/${groupId}/members/count`, { headers }).catch(() => null) : Promise.resolve(null)
+    ]);
+
+    const quota = quotaRes?.ok ? await quotaRes.json() : null;
+    const usage = usageRes?.ok ? await usageRes.json() : null;
+    const member = memberRes?.ok ? await memberRes.json() : null;
+
+    const limit = quota?.value ?? (quota?.type === 'none' ? 'ไม่จำกัด' : 200);
+    const totalUsage = usage?.totalUsage ?? null;
+    const groupMemberCount = member?.count ?? null;
+    const isExceeded = typeof limit === 'number' && typeof totalUsage === 'number' && totalUsage >= limit;
+
+    return {
+      type: quota?.type || 'limited',
+      limit,
+      totalUsage,
+      groupMemberCount,
+      isExceeded
+    };
+  } catch (err) {
+    console.error('Error fetching LINE quota:', err);
+    return null;
+  }
+}
+
 // Test trigger endpoint for manual test
 app.post('/api/line/test-send', async (req, res) => {
   try {
@@ -1023,7 +1058,23 @@ app.post('/api/line/test-send', async (req, res) => {
     const flexMessage = buildDailyLineFlexMessage(todayStr, missions);
 
     const result = await sendLinePushMessage(groupId, flexMessage);
-    res.json({ success: result.success, groupId, result });
+    if (!result.success) {
+      let friendlyError = 'ส่งข้อความไม่สำเร็จ';
+      if (result.status === 429 || (result.error && result.error.includes('monthly limit'))) {
+        friendlyError = 'โควตาส่งข้อความฟรีของ LINE ประจำเดือนนี้เต็มแล้ว (จำกัด 200 ข้อความ/เดือน สำหรับ LINE OA บัญชีฟรี) ระบบจะรีเซ็ตโควตาใหม่ในวันที่ 1 ของเดือนถัดไป หรือต้องอัปเกรดแพ็กเกจใน LINE Official Account Manager ครับ';
+      } else if (result.error) {
+        friendlyError = `LINE API Error (${result.status || 'Error'}): ${result.error}`;
+      }
+      return res.status(400).json({
+        success: false,
+        error: friendlyError,
+        rawError: result.error,
+        status: result.status,
+        groupId
+      });
+    }
+
+    res.json({ success: true, groupId, result });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -1033,6 +1084,7 @@ app.post('/api/line/test-send', async (req, res) => {
 app.get('/api/line/status', async (req, res) => {
   try {
     const config = await getLineConfig();
+    const quota = await getLineQuotaInfo(config.groupId);
     res.json({
       success: true,
       hasToken: Boolean(process.env.LINE_ACCESS_TOKEN),
@@ -1042,7 +1094,8 @@ app.get('/api/line/status', async (req, res) => {
       notifyEnabled: config.notifyEnabled,
       notifyOnEmpty: config.notifyOnEmpty,
       notifyOnAdd: config.notifyOnAdd,
-      notifyOnHolidays: config.notifyOnHolidays
+      notifyOnHolidays: config.notifyOnHolidays,
+      quota
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1126,8 +1179,12 @@ async function setupDailyCronJob() {
 
       const flexMessage = buildDailyLineFlexMessage(todayStr, missions);
 
-      await sendLinePushMessage(activeConfig.groupId, flexMessage);
-      console.log(`🚀 [CRON ${notifyTime}] Successfully sent missions for ${todayStr} to ${activeConfig.groupId}`);
+      const result = await sendLinePushMessage(activeConfig.groupId, flexMessage);
+      if (result.success) {
+        console.log(`🚀 [CRON ${notifyTime}] Successfully sent missions for ${todayStr} to ${activeConfig.groupId}`);
+      } else {
+        console.error(`❌ [CRON ${notifyTime}] Failed to send missions for ${todayStr} to ${activeConfig.groupId}:`, result.error);
+      }
     } catch (err) {
       console.error(`❌ [CRON ${notifyTime}] Error sending daily mission notification:`, err);
     }
