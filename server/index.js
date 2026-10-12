@@ -333,7 +333,7 @@ app.post('/api/missions', async (req, res) => {
     if (lineConfig.notifyOnAdd && lineConfig.groupId) {
       try {
         const flexMessage = buildNewMissionFlexMessage(newMission);
-        await sendLinePushMessage(lineConfig.groupId, flexMessage);
+        await sendLinePushMessageWithRotation(lineConfig.groupId, flexMessage);
         console.log(`📤 Sent new mission notification for ID ${newMission.id}`);
       } catch (err) {
         console.error('❌ Error sending new mission notification:', err);
@@ -591,7 +591,7 @@ async function saveStoredGroupId(groupId) {
   }
 }
 
-async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays }) {
+async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays, tokens }) {
   try {
     const presets = await getPresets();
     if (notifyTime !== undefined) {
@@ -642,6 +642,10 @@ async function saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, noti
       } else {
         await addPreset('categories', { name: `LINE_NOTIFY_ON_HOLIDAYS:${cachedNotifyOnHolidays}` });
       }
+    }
+
+    if (tokens !== undefined && Array.isArray(tokens)) {
+      await saveLineTokens(tokens);
     }
 
     setupDailyCronJob();
@@ -903,11 +907,86 @@ function buildNewMissionFlexMessage(mission) {
   return flex;
 }
 
+// Get all configured LINE Tokens (from DB presets and Environment Variables)
+async function getAllLineTokens() {
+  const tokenList = [];
+
+  // 1. From DB Presets (LINE_TOKEN_1, LINE_TOKEN_2, ...)
+  try {
+    const presets = await getPresets();
+    for (let i = 1; i <= 6; i++) {
+      const p = presets.categories?.find(c => c.name?.startsWith(`LINE_TOKEN_${i}:`));
+      if (p) {
+        const val = p.name.replace(`LINE_TOKEN_${i}:`, '').trim();
+        if (val) {
+          tokenList.push({ id: i, token: val, source: 'db' });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching tokens from presets:', err);
+  }
+
+  // 2. From Environment Variables (fallback or primary if no DB tokens)
+  const envTokens = [];
+  if (process.env.LINE_ACCESS_TOKEN) {
+    envTokens.push(process.env.LINE_ACCESS_TOKEN.trim());
+  }
+  for (let i = 2; i <= 6; i++) {
+    const t = process.env[`LINE_ACCESS_TOKEN_${i}`];
+    if (t && t.trim()) envTokens.push(t.trim());
+  }
+  if (process.env.LINE_ACCESS_TOKENS) {
+    process.env.LINE_ACCESS_TOKENS.split(',').map(s => s.trim()).filter(Boolean).forEach(t => {
+      if (!envTokens.includes(t)) envTokens.push(t);
+    });
+  }
+
+  // If tokenList is empty, seed from envTokens
+  if (tokenList.length === 0) {
+    envTokens.forEach((tok, idx) => {
+      tokenList.push({ id: idx + 1, token: tok, source: 'env' });
+    });
+  } else {
+    // If some env tokens are not in DB list, append them
+    envTokens.forEach((tok) => {
+      if (!tokenList.some(t => t.token === tok)) {
+        tokenList.push({ id: tokenList.length + 1, token: tok, source: 'env' });
+      }
+    });
+  }
+
+  return tokenList;
+}
+
+async function saveLineTokens(tokens) {
+  if (!Array.isArray(tokens)) return;
+  try {
+    const presets = await getPresets();
+    for (let i = 1; i <= 6; i++) {
+      const tokenVal = (tokens[i - 1] || '').trim();
+      const existing = presets.categories?.find(c => c.name?.startsWith(`LINE_TOKEN_${i}:`));
+      if (tokenVal) {
+        if (existing) {
+          await updatePreset('categories', existing.id, { name: `LINE_TOKEN_${i}:${tokenVal}` });
+        } else {
+          await addPreset('categories', { name: `LINE_TOKEN_${i}:${tokenVal}` });
+        }
+      } else if (existing) {
+        await deletePreset('categories', existing.id);
+      }
+    }
+    console.log(`🔑 Updated LINE Tokens in DB (Count: ${tokens.filter(Boolean).length})`);
+  } catch (err) {
+    console.error('Failed to save LINE tokens:', err);
+  }
+}
+
 // Push message helper (supports plain text or LINE Flex Message object)
-async function sendLinePushMessage(targetId, messagePayload) {
-  const token = process.env.LINE_ACCESS_TOKEN;
+async function sendLinePushMessage(targetId, messagePayload, tokenOverride = null) {
+  const token = tokenOverride || process.env.LINE_ACCESS_TOKEN;
   if (!token) {
-    console.error('❌ LINE_ACCESS_TOKEN not set in environment variables');
+    console.error('❌ LINE_ACCESS_TOKEN not set');
     return { success: false, error: 'LINE_ACCESS_TOKEN not configured' };
   }
 
@@ -946,9 +1025,47 @@ async function sendLinePushMessage(targetId, messagePayload) {
   }
 }
 
+// Push message with automatic bot rotation (multi-bot failover)
+async function sendLinePushMessageWithRotation(targetId, messagePayload) {
+  const tokens = await getAllLineTokens();
+  if (!tokens || tokens.length === 0) {
+    return { success: false, error: 'ยังไม่มี LINE Channel Access Token ในระบบ' };
+  }
+
+  let lastResult = null;
+  for (let i = 0; i < tokens.length; i++) {
+    const item = tokens[i];
+    console.log(`🤖 [Bot #${item.id}/${tokens.length}] Sending push message to ${targetId}...`);
+    const result = await sendLinePushMessage(targetId, messagePayload, item.token);
+
+    if (result.success) {
+      console.log(`✅ [Bot #${item.id}/${tokens.length}] Message sent successfully!`);
+      return { success: true, botId: item.id, totalBots: tokens.length };
+    }
+
+    // If quota exceeded (429 or 'monthly limit'), rotate to next bot
+    if (result.status === 429 || (result.error && String(result.error).includes('monthly limit'))) {
+      console.warn(`⚠️ [Bot #${item.id}/${tokens.length}] Monthly quota exceeded (429). Rotating to next bot...`);
+      lastResult = result;
+      continue;
+    }
+
+    // If another error, return immediately
+    return { ...result, botId: item.id };
+  }
+
+  return {
+    success: false,
+    status: 429,
+    error: `โควตาส่งข้อความของบอททุกตัวในระบบ (${tokens.length} ตัว) เต็มแล้วทั้งหมด`,
+    lastResult
+  };
+}
+
 // Reply message helper for webhooks
 async function replyLineMessage(replyToken, text) {
-  const token = process.env.LINE_ACCESS_TOKEN;
+  const tokens = await getAllLineTokens();
+  const token = tokens[0]?.token || process.env.LINE_ACCESS_TOKEN;
   if (!token || !replyToken) return;
 
   try {
@@ -1007,39 +1124,66 @@ app.post('/api/line/webhook', async (req, res) => {
   }
 });
 
-// Get LINE Messaging API quota and consumption info
-async function getLineQuotaInfo(groupId) {
-  const token = process.env.LINE_ACCESS_TOKEN;
-  if (!token) return null;
+// Get quota and consumption info for all configured bots
+async function getAllLineBotsQuotaInfo(groupId) {
+  const tokens = await getAllLineTokens();
+  if (!tokens || tokens.length === 0) return [];
 
-  try {
-    const headers = { 'Authorization': `Bearer ${token}` };
-    const [quotaRes, usageRes, memberRes] = await Promise.all([
-      fetch('https://api.line.me/v2/bot/message/quota', { headers }).catch(() => null),
-      fetch('https://api.line.me/v2/bot/message/quota/consumption', { headers }).catch(() => null),
-      groupId ? fetch(`https://api.line.me/v2/bot/group/${groupId}/members/count`, { headers }).catch(() => null) : Promise.resolve(null)
-    ]);
-
-    const quota = quotaRes?.ok ? await quotaRes.json() : null;
-    const usage = usageRes?.ok ? await usageRes.json() : null;
-    const member = memberRes?.ok ? await memberRes.json() : null;
-
-    const limit = quota?.value ?? (quota?.type === 'none' ? 'ไม่จำกัด' : 200);
-    const totalUsage = usage?.totalUsage ?? null;
-    const groupMemberCount = member?.count ?? null;
-    const isExceeded = typeof limit === 'number' && typeof totalUsage === 'number' && totalUsage >= limit;
-
-    return {
-      type: quota?.type || 'limited',
-      limit,
-      totalUsage,
-      groupMemberCount,
-      isExceeded
-    };
-  } catch (err) {
-    console.error('Error fetching LINE quota:', err);
-    return null;
+  let groupMemberCount = null;
+  if (groupId && tokens.length > 0) {
+    try {
+      const memRes = await fetch(`https://api.line.me/v2/bot/group/${groupId}/members/count`, {
+        headers: { 'Authorization': `Bearer ${tokens[0].token}` }
+      });
+      if (memRes.ok) {
+        const memData = await memRes.json();
+        groupMemberCount = memData.count;
+      }
+    } catch {}
   }
+
+  const botsInfo = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const { id, token, source } = tokens[i];
+    try {
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const [quotaRes, usageRes] = await Promise.all([
+        fetch('https://api.line.me/v2/bot/message/quota', { headers }).catch(() => null),
+        fetch('https://api.line.me/v2/bot/message/quota/consumption', { headers }).catch(() => null)
+      ]);
+
+      const quota = quotaRes?.ok ? await quotaRes.json() : null;
+      const usage = usageRes?.ok ? await usageRes.json() : null;
+
+      const limit = quota?.value ?? (quota?.type === 'none' ? 'ไม่จำกัด' : 200);
+      const totalUsage = usage?.totalUsage ?? 0;
+      const isExceeded = typeof limit === 'number' && typeof totalUsage === 'number' && totalUsage >= limit;
+
+      botsInfo.push({
+        id,
+        source,
+        tokenPreview: token.length > 15 ? `${token.slice(0, 8)}...${token.slice(-6)}` : '***',
+        hasToken: true,
+        limit,
+        totalUsage,
+        isExceeded,
+        groupMemberCount
+      });
+    } catch (err) {
+      botsInfo.push({
+        id,
+        source,
+        tokenPreview: '***',
+        hasToken: true,
+        limit: 200,
+        totalUsage: null,
+        isExceeded: false,
+        groupMemberCount
+      });
+    }
+  }
+
+  return botsInfo;
 }
 
 // Test trigger endpoint for manual test
@@ -1057,11 +1201,11 @@ app.post('/api/line/test-send', async (req, res) => {
     const missions = await getTodayMissions(todayStr);
     const flexMessage = buildDailyLineFlexMessage(todayStr, missions);
 
-    const result = await sendLinePushMessage(groupId, flexMessage);
+    const result = await sendLinePushMessageWithRotation(groupId, flexMessage);
     if (!result.success) {
       let friendlyError = 'ส่งข้อความไม่สำเร็จ';
       if (result.status === 429 || (result.error && result.error.includes('monthly limit'))) {
-        friendlyError = 'โควตาส่งข้อความฟรีของ LINE ประจำเดือนนี้เต็มแล้ว (จำกัด 200 ข้อความ/เดือน สำหรับ LINE OA บัญชีฟรี) ระบบจะรีเซ็ตโควตาใหม่ในวันที่ 1 ของเดือนถัดไป หรือต้องอัปเกรดแพ็กเกจใน LINE Official Account Manager ครับ';
+        friendlyError = result.error || 'โควตาส่งข้อความของบอททุกตัวในระบบเต็มแล้วทั้งหมดครับ กรุณาเพิ่มบอทสำรองหรือรอรีเซ็ตวันที่ 1 ครับ';
       } else if (result.error) {
         friendlyError = `LINE API Error (${result.status || 'Error'}): ${result.error}`;
       }
@@ -1084,10 +1228,15 @@ app.post('/api/line/test-send', async (req, res) => {
 app.get('/api/line/status', async (req, res) => {
   try {
     const config = await getLineConfig();
-    const quota = await getLineQuotaInfo(config.groupId);
+    const bots = await getAllLineBotsQuotaInfo(config.groupId);
+    const tokens = await getAllLineTokens();
+
+    const activeBot = bots.find(b => !b.isExceeded) || bots[0] || null;
+    const allExceeded = bots.length > 0 && bots.every(b => b.isExceeded);
+
     res.json({
       success: true,
-      hasToken: Boolean(process.env.LINE_ACCESS_TOKEN),
+      hasToken: tokens.length > 0,
       hasSecret: Boolean(process.env.LINE_CHANNEL_SECRET),
       groupId: config.groupId || null,
       notifyTime: config.notifyTime,
@@ -1095,7 +1244,11 @@ app.get('/api/line/status', async (req, res) => {
       notifyOnEmpty: config.notifyOnEmpty,
       notifyOnAdd: config.notifyOnAdd,
       notifyOnHolidays: config.notifyOnHolidays,
-      quota
+      bots,
+      totalBots: bots.length,
+      activeBotId: activeBot?.id || 1,
+      allExceeded,
+      quota: activeBot || null
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -1105,8 +1258,8 @@ app.get('/api/line/status', async (req, res) => {
 // PUT update line settings
 app.put('/api/line/settings', async (req, res) => {
   try {
-    const { notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays } = req.body;
-    await saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays });
+    const { notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays, tokens } = req.body;
+    await saveLineSettings({ notifyTime, notifyEnabled, notifyOnEmpty, notifyOnAdd, notifyOnHolidays, tokens });
     res.json({
       success: true,
       message: 'บันทึกการตั้งค่า LINE สำเร็จ',
@@ -1179,9 +1332,9 @@ async function setupDailyCronJob() {
 
       const flexMessage = buildDailyLineFlexMessage(todayStr, missions);
 
-      const result = await sendLinePushMessage(activeConfig.groupId, flexMessage);
+      const result = await sendLinePushMessageWithRotation(activeConfig.groupId, flexMessage);
       if (result.success) {
-        console.log(`🚀 [CRON ${notifyTime}] Successfully sent missions for ${todayStr} to ${activeConfig.groupId}`);
+        console.log(`🚀 [CRON ${notifyTime}] Successfully sent missions for ${todayStr} to ${activeConfig.groupId} (via Bot #${result.botId || 1})`);
       } else {
         console.error(`❌ [CRON ${notifyTime}] Failed to send missions for ${todayStr} to ${activeConfig.groupId}:`, result.error);
       }
