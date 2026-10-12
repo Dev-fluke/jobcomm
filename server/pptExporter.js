@@ -51,16 +51,18 @@ export function formatThaiDateRangePpt(startDateStr, endDateStr) {
 
 function escapeXml(unsafe) {
   if (!unsafe) return '';
-  return String(unsafe).replace(/[<>&'"]/g, c => {
-    switch (c) {
-      case '<': return '&lt;';
-      case '>': return '&gt;';
-      case '&': return '&amp;';
-      case '\'': return '&apos;';
-      case '"': return '&quot;';
-      default: return c;
-    }
-  });
+  return String(unsafe)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+    .replace(/[<>&'"]/g, c => {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case '\'': return '&apos;';
+        case '"': return '&quot;';
+        default: return c;
+      }
+    });
 }
 
 function makeTextRun(text) {
@@ -218,6 +220,15 @@ export async function generatePptxReport(missions = []) {
   let presRels = await zip.file('ppt/_rels/presentation.xml.rels').async('string');
   let ctXml = await zip.file('[Content_Types].xml').async('string');
 
+  // Extract all existing slide IDs from presentation.xml to guarantee 100% uniqueness (no collisions)
+  const existingSldIds = [...presXml.matchAll(/<p:sldId id="(\d+)"/g)].map(m => parseInt(m[1], 10));
+  let nextSldId = existingSldIds.length > 0 ? Math.max(...existingSldIds) + 1 : 5000;
+  if (nextSldId < 5000) nextSldId = 5000;
+
+  // Extract all existing relationship IDs from presentation.xml.rels
+  const existingRelIds = [...presRels.matchAll(/Id="rId(\d+)"/g)].map(m => parseInt(m[1], 10));
+  let nextRelId = existingRelIds.length > 0 ? Math.max(...existingRelIds) + 1 : 10;
+
   let currentOrder = 1; // Order starts at Thai number ๑ (1)
 
   for (let s = 1; s <= numSlides; s++) {
@@ -230,8 +241,8 @@ export async function generatePptxReport(missions = []) {
     zip.file(`ppt/slides/_rels/${slideFileName}.rels`, s1Rels);
 
     if (s > 1) {
-      const relId = `rIdSlide${s}`;
-      const sldId = 4840 + s;
+      const relId = `rId${nextRelId++}`;
+      const sldId = nextSldId++;
       presRels = presRels.replace('</Relationships>', `<Relationship Id="${relId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/${slideFileName}"/></Relationships>`);
       presXml = presXml.replace('</p:sldIdLst>', `<p:sldId id="${sldId}" r:id="${relId}"/></p:sldIdLst>`);
       ctXml = ctXml.replace('</Types>', `<Override PartName="/ppt/slides/${slideFileName}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>`);

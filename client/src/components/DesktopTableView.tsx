@@ -27,6 +27,8 @@ import {
   Presentation
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 interface DesktopTableViewProps {
   missions: Mission[];
   todayDateStr: string;
@@ -157,7 +159,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
   const handleExportPPT = async () => {
     try {
       setIsExportingPPT(true);
-      const res = await fetch('/api/export-pptx', {
+      const res = await fetch(`${API_BASE}/export-pptx`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ missions: filtered })
@@ -212,7 +214,7 @@ export const DesktopTableView: React.FC<DesktopTableViewProps> = ({
 
     setIsDeleting(true);
     try {
-      const res = await fetch('/api/missions/delete-month', {
+      const res = await fetch(`${API_BASE}/missions/delete-month`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
