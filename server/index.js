@@ -909,7 +909,7 @@ function buildNewMissionFlexMessage(mission) {
 
 // Push message helper (supports plain text or LINE Flex Message object)
 async function sendLinePushMessage(targetId, messagePayload) {
-  const token = process.env.LINE_ACCESS_TOKEN;
+  const token = (process.env.LINE_ACCESS_TOKEN || '').replace(/\s+/g, '');
   if (!token) {
     console.error('❌ LINE_ACCESS_TOKEN not set in environment variables');
     return { success: false, error: 'LINE_ACCESS_TOKEN not configured' };
@@ -952,7 +952,7 @@ async function sendLinePushMessage(targetId, messagePayload) {
 
 // Reply message helper for webhooks (supports plain text or LINE Flex Message object - 100% Free / Unlimited)
 async function replyLineMessage(replyToken, messagePayload) {
-  const token = process.env.LINE_ACCESS_TOKEN;
+  const token = (process.env.LINE_ACCESS_TOKEN || '').replace(/\s+/g, '');
   if (!token || !replyToken) return;
 
   let messages = [];
@@ -1027,7 +1027,7 @@ app.post('/api/line/webhook', async (req, res) => {
 
 // Get LINE Messaging API quota, consumption, and member count info
 async function getLineQuotaInfo(groupId) {
-  const token = process.env.LINE_ACCESS_TOKEN;
+  const token = (process.env.LINE_ACCESS_TOKEN || '').replace(/\s+/g, '');
   if (!token) return null;
 
   try {
