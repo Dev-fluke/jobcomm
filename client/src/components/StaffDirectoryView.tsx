@@ -122,7 +122,7 @@ export const StaffDirectoryView: React.FC<StaffDirectoryViewProps> = ({ onToast 
     if (!res.ok || !data.success) {
       throw new Error(data.error || 'อัปโหลดรูปภาพไม่สำเร็จ');
     }
-    return data.data.url;
+    return data.url || data.data?.url || null;
   };
 
   const handleModalFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
