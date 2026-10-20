@@ -346,14 +346,14 @@ export function formatDayMissionsForLine(dateKey: string, items: any[]): string 
     }
 
     if (m.attachment_url) {
-      const attachLink = m.attachment_url.startsWith('http') ? m.attachment_url : `https://jobcomm.onrender.com${m.attachment_url}`;
+      const attachLink = m.attachment_url.startsWith('http') ? m.attachment_url : `https://jobcomm.ict-oryor.site${m.attachment_url}`;
       block += `\nเอกสารแนบ : ${attachLink}`;
     }
     
     return block;
   }).join('\n\n');
 
-  return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจทั้งหมดได้ที่ https://jobcomm.onrender.com/`;
+  return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจทั้งหมดได้ที่ https://jobcomm.ict-oryor.site/`;
 }
 
 /**
@@ -396,7 +396,7 @@ export function formatMissionForLine(
   }
   
   if (mission.attachment_url) {
-    const attachLink = mission.attachment_url.startsWith('http') ? mission.attachment_url : `https://jobcomm.onrender.com${mission.attachment_url}`;
+    const attachLink = mission.attachment_url.startsWith('http') ? mission.attachment_url : `https://jobcomm.ict-oryor.site${mission.attachment_url}`;
     lines.push(`เอกสารแนบ : ${attachLink}`);
   }
 

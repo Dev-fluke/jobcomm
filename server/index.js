@@ -495,7 +495,7 @@ function buildDailyLineMessage(dateStr, missions) {
   const dateFormatted = formatThaiDateWithDay(dateStr);
 
   if (!missions || missions.length === 0) {
-    return `ภารกิจ${dateFormatted} ครับ\n\n- วันนี้ไม่มีภารกิจ -\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
+    return `ภารกิจ${dateFormatted} ครับ\n\n- วันนี้ไม่มีภารกิจ -\n\nดูภารกิจได้ที่ https://jobcomm.ict-oryor.site/`;
   }
 
   const sorted = [...missions].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
@@ -513,7 +513,7 @@ function buildDailyLineMessage(dateStr, missions) {
     return `${timeStr} ${m.title}${locationStr}${detailSuffix}`;
   }).join('\n\n');
 
-  return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.onrender.com/`;
+  return `ภารกิจ${dateFormatted} ครับ\n\n${missionBlocks}\n\nดูภารกิจได้ที่ https://jobcomm.ict-oryor.site/`;
 }
 
 // Target Group ID & Settings storage (persisted via DB preset or fallback)
@@ -714,7 +714,7 @@ function buildDailyLineFlexMessage(dateStr, missions) {
               action: {
                 type: 'uri',
                 label: '🌐 เปิดดูระบบ JobComm',
-                uri: 'https://jobcomm.onrender.com/'
+                uri: 'https://jobcomm.ict-oryor.site/'
               }
             }
           ]
@@ -738,12 +738,12 @@ function buildDailyLineFlexMessage(dateStr, missions) {
     const hasDescription = Boolean(m.description && m.description.trim());
 
     // Resolve URL: attachment file URL if exists, else web app
-    let actionUrl = 'https://jobcomm.onrender.com/';
+    let actionUrl = 'https://jobcomm.ict-oryor.site/';
     if (hasAttachment) {
       if (m.attachment_url.startsWith('http://') || m.attachment_url.startsWith('https://')) {
         actionUrl = m.attachment_url;
       } else {
-        actionUrl = `https://jobcomm.onrender.com${m.attachment_url}`;
+        actionUrl = `https://jobcomm.ict-oryor.site${m.attachment_url}`;
       }
     }
 
@@ -889,7 +889,7 @@ function buildDailyLineFlexMessage(dateStr, missions) {
             action: {
               type: 'uri',
               label: '🌐 เปิดดูระบบ JobComm ทั้งหมด',
-              uri: 'https://jobcomm.onrender.com/'
+              uri: 'https://jobcomm.ict-oryor.site/'
             }
           }
         ]

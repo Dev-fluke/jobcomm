@@ -23,4 +23,4 @@ npm run dev  เหมาะสำหรับกำลังพัฒนา
 npm run build
 
 
-https://jobcomm.onrender.com/
+https://jobcomm.ict-oryor.site/
