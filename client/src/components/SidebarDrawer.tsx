@@ -6,7 +6,8 @@ import {
   Shield,
   Radio,
   Bell,
-  CalendarDays
+  CalendarDays,
+  Users
 } from 'lucide-react';
 import type { ActiveTab } from '../types';
 
@@ -50,6 +51,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       icon: TableProperties
     },
     {
+      id: 'staff' as ActiveTab,
+      label: 'ข้าราชการ',
+      sublabel: 'รายชื่อข้าราชการ เบอร์โทร และตำแหน่งในแผนกสื่อสาร อย.',
+      icon: Users
+    },
+    {
       id: 'settings' as ActiveTab,
       label: 'ตั้งค่าส่ง LINE อัตโนมัติ',
       sublabel: 'ตั้งเวลาส่งภารกิจและเชื่อมต่อกลุ่ม LINE',
@@ -68,7 +75,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       {/* Drawer Panel */}
       <div className="absolute inset-y-0 left-0 max-w-full flex">
         <div className="w-80 sm:w-88 bg-white shadow-2xl flex flex-col justify-between">
-          {/* Drawer Header (Clean - removed วันนี้ / กำลังทำ / เสร็จสิ้น counters) */}
+          {/* Drawer Header */}
           <div>
             <div className="bg-gradient-to-br from-blue-950 via-slate-900 to-blue-900 text-white p-5 border-b border-blue-800">
               <div className="flex items-start justify-between">
@@ -140,7 +147,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           </div>
 
           {/* Drawer Footer */}
-         
         </div>
       </div>
     </div>

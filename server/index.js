@@ -21,7 +21,11 @@ import {
   getPresets,
   addPreset,
   updatePreset,
-  deletePreset
+  deletePreset,
+  getStaffMembers,
+  createStaffMember,
+  updateStaffMember,
+  deleteStaffMember
 } from './db.js';
 import { generatePptxReport } from './pptExporter.js';
 
@@ -187,6 +191,46 @@ function getTodayDateString(req) {
   if (req && req.query && req.query.date) return req.query.date;
   return getBangkokDateString();
 }
+
+// STAFF DIRECTORY API (ข้าราชการแผนกสื่อสาร อย.)
+app.get('/api/staff', async (req, res) => {
+  try {
+    const staff = await getStaffMembers();
+    res.json({ success: true, data: staff });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/staff', async (req, res) => {
+  try {
+    const item = await createStaffMember(req.body);
+    broadcastUpdate('staff_updated', item);
+    res.status(201).json({ success: true, data: item });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/staff/:id', async (req, res) => {
+  try {
+    const item = await updateStaffMember(Number(req.params.id), req.body);
+    broadcastUpdate('staff_updated', item);
+    res.json({ success: true, data: item });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/staff/:id', async (req, res) => {
+  try {
+    const item = await deleteStaffMember(Number(req.params.id));
+    broadcastUpdate('staff_updated', item);
+    res.json({ success: true, data: item });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
 
 // PRESETS API (Categories, Locations, Personnel)
 app.get('/api/presets', async (req, res) => {

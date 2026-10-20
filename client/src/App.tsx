@@ -11,6 +11,7 @@ import { DesktopTableView } from './components/DesktopTableView';
 import { EditMissionModal } from './components/EditMissionModal';
 import { LineSettingsView } from './components/LineSettingsView';
 import { CalendarView } from './components/CalendarView';
+import { StaffDirectoryView } from './components/StaffDirectoryView';
 import { LoadingScreen } from './components/LoadingScreen';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -369,6 +370,12 @@ export function App() {
           <LineSettingsView
             onToast={showToast}
             onBack={() => setActiveTab('today')}
+          />
+        )}
+
+        {activeTab === 'staff' && (
+          <StaffDirectoryView
+            onToast={showToast}
           />
         )}
 

@@ -19,7 +19,18 @@ export interface Mission {
   updated_at?: string;
 }
 
-export type ActiveTab = 'today' | 'other' | 'add' | 'tv' | 'table' | 'settings' | 'calendar';
+export type ActiveTab = 'today' | 'other' | 'add' | 'tv' | 'table' | 'settings' | 'calendar' | 'staff';
+
+export interface StaffMember {
+  id: number;
+  order_index: number;
+  full_name: string;
+  note?: string;
+  nickname: string;
+  phone: string;
+  position: string;
+  image_url?: string;
+}
 
 export interface Stats {
   total: number;

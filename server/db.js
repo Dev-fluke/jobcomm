@@ -162,6 +162,198 @@ if (isSupabase) {
 }
 
 // Preset CRUD operations
+export const DEFAULT_STAFF_MEMBERS = [
+  { order_index: 1, full_name: 'น.ต.สารัตน์ สุภาบุญ', note: '', nickname: '-', phone: '081-426-5691', position: 'นปส.ผสส.อย.', image_url: '' },
+  { order_index: 2, full_name: 'ร.อ.โอรส บัวบาน', note: '', nickname: 'โอ', phone: '091-065-7151', position: 'นปส.ผสส.อย.', image_url: '' },
+  { order_index: 3, full_name: 'ร.ท.พัฒนพงษ์ มูลโมกข์', note: '', nickname: 'เล็ก', phone: '082-228-4788', position: 'นชง.อย. และ รรก.จนท.ศขส.ผสส.อย.', image_url: '' },
+  { order_index: 4, full_name: 'ร.ท.อนุวัต บุญปลอด', note: '', nickname: 'บอล', phone: '095-782-6744', position: 'น.ศูนย์ข่าว ผสส.อย.', image_url: '' },
+  { order_index: 5, full_name: 'ร.ต.สุนทร กลิ่นพงษา', note: '', nickname: 'หน่อง', phone: '066-161-4635', position: 'นชง.อย. และ รรก.จนท.ปสส.ผสส.อย.', image_url: '' },
+  { order_index: 6, full_name: 'พ.อ.อ.สิริณัฐ ศาตะโยธิน', note: '(มาช่วยราชการ)', nickname: 'นัท', phone: '089-502-5699', position: 'จนท.กบ.กกบ.บก.อย.', image_url: '' },
+  { order_index: 7, full_name: 'พ.อ.อ.กฤติน สลิดกุล', note: '', nickname: 'ติน', phone: '099-291-2824', position: 'ชทศ.ผสส.อย.', image_url: '' },
+  { order_index: 8, full_name: 'พ.อ.อ.ณัฐวุฒิ อัจฉริยากรกุล', note: '', nickname: 'แฟง', phone: '095-516-8172', position: 'จนท.ปส.ผสส.อย.', image_url: '' },
+  { order_index: 9, full_name: 'พ.อ.อ.จิรวัฒน์ หัตถกี', note: '(ไปช่วยราชการ พัน.๒ กรม ทย.รอ.อย.)', nickname: 'ฟลุ๊ค', phone: '-', position: 'ชร.ผสส.อย.', image_url: '' },
+  { order_index: 10, full_name: 'พ.อ.ท.ศิลป์ชัย หาญพยัคฆ์', note: '', nickname: 'หน่อง', phone: '063-012-9036', position: 'จนท.พด.ผสส.อย.', image_url: '' },
+  { order_index: 11, full_name: 'พ.อ.ท.กิตติภณ กล่ำเอม', note: '(ไปช่วยราชการ นทสส.อย.)', nickname: 'ฟลุ๊ค', phone: '083-549-7037', position: 'สมน.ผสส.อย.', image_url: '' },
+  { order_index: 12, full_name: 'พ.อ.ท.คมสันต์ เจริญพร', note: '(ไปช่วยราชการ กรม ตอ.อย.)', nickname: 'เอ', phone: '092-419-9504', position: 'ชว.ผสส.อย.', image_url: '' },
+  { order_index: 13, full_name: 'จ.อ.ปฐวี บุญศรีพิรัตน์', note: '', nickname: 'แพร', phone: '095-823-9354', position: 'จนท.ปส.ผสส.อย.', image_url: '' },
+  { order_index: 14, full_name: 'จ.อ.บุญภัทร บุญเรืองศรี', note: '(มาช่วยราชการ)', nickname: 'โอ', phone: '090-666-8726', position: 'จนท.ส.ร้อย.2 พัน.2 กรม ทย.รอ.อย.', image_url: '' },
+  { order_index: 15, full_name: 'จ.อ.สิทธิพล สุขกันตะ', note: '', nickname: 'เดียร์', phone: '099-262-1199', position: 'จนท.รห.ผสส.อย.', image_url: '' },
+  { order_index: 16, full_name: 'จ.ท.รักติบูลย์ วีระสวัสดิ์', note: '', nickname: 'โก๋', phone: '099-343-1607', position: 'จนท.ศข.ผสส.อย.', image_url: '' },
+  { order_index: 17, full_name: 'จ.ต.ภูมินทร์ ปฏิขานัง', note: '', nickname: 'จิม', phone: '088-654-6764', position: 'ช่างวิทยุ แผนกสื่อสาร อย.', image_url: '' }
+];
+
+function parseStaffRow(row) {
+  try {
+    const parsed = JSON.parse(row.role || '{}');
+    return {
+      id: Number(row.id),
+      order_index: Number(parsed.order_index ?? 999),
+      full_name: parsed.full_name || '',
+      note: parsed.note || '',
+      nickname: parsed.nickname || '-',
+      phone: parsed.phone || '-',
+      position: parsed.position || '',
+      image_url: parsed.image_url || ''
+    };
+  } catch {
+    return {
+      id: Number(row.id),
+      order_index: 999,
+      full_name: row.name.replace(/^STAFF_DIR:/, ''),
+      note: '',
+      nickname: '-',
+      phone: '-',
+      position: row.role || '',
+      image_url: ''
+    };
+  }
+}
+
+export async function getStaffMembers() {
+  if (isSupabase) {
+    const { data: rows, error } = await supabase
+      .from('personnel')
+      .select('*')
+      .like('name', 'STAFF_DIR%')
+      .order('id', { ascending: true });
+    if (error) throw error;
+
+    const hasSeededFlag = (rows || []).some((r) => r.name === 'STAFF_DIR_META:SEEDED');
+    const staffRows = (rows || []).filter((r) => r.name.startsWith('STAFF_DIR:'));
+
+    if (!hasSeededFlag && staffRows.length === 0) {
+      const insertPayloads = [
+        { name: 'STAFF_DIR_META:SEEDED', role: 'true' },
+        ...DEFAULT_STAFF_MEMBERS.map((m, idx) => ({
+          name: 'STAFF_DIR:INIT_' + (idx + 1) + '_' + Date.now(),
+          role: JSON.stringify(m)
+        }))
+      ];
+      const { data: inserted } = await supabase.from('personnel').insert(insertPayloads).select();
+      const createdRows = (inserted || []).filter((r) => r.name.startsWith('STAFF_DIR:'));
+      return createdRows.map(parseStaffRow).sort((a, b) => a.order_index - b.order_index || a.id - b.id);
+    }
+
+    return staffRows.map(parseStaffRow).sort((a, b) => a.order_index - b.order_index || a.id - b.id);
+  }
+
+  const allRows = db.prepare("SELECT * FROM personnel WHERE name LIKE 'STAFF_DIR%' ORDER BY id ASC").all();
+  const hasSeededFlag = allRows.some((r) => r.name === 'STAFF_DIR_META:SEEDED');
+  let staffRows = allRows.filter((r) => r.name.startsWith('STAFF_DIR:'));
+
+  if (!hasSeededFlag && staffRows.length === 0) {
+    const insertStmt = db.prepare('INSERT OR IGNORE INTO personnel (name, role) VALUES (?, ?)');
+    insertStmt.run('STAFF_DIR_META:SEEDED', 'true');
+    DEFAULT_STAFF_MEMBERS.forEach((m, idx) => {
+      insertStmt.run('STAFF_DIR:INIT_' + (idx + 1) + '_' + Date.now(), JSON.stringify(m));
+    });
+    staffRows = db.prepare("SELECT * FROM personnel WHERE name LIKE 'STAFF_DIR:%' ORDER BY id ASC").all();
+  }
+
+  return staffRows.map(parseStaffRow).sort((a, b) => a.order_index - b.order_index || a.id - b.id);
+}
+
+export async function createStaffMember(data) {
+  const payloadObj = {
+    order_index: Number(data.order_index || 1),
+    full_name: (data.full_name || '').trim(),
+    note: (data.note || '').trim(),
+    nickname: (data.nickname || '-').trim() || '-',
+    phone: (data.phone || '-').trim() || '-',
+    position: (data.position || '').trim(),
+    image_url: data.image_url || ''
+  };
+  if (!payloadObj.full_name) {
+    throw new Error('กรุณาระบุ ยศ - ชื่อ - สกุล');
+  }
+  const uniqueKey = 'STAFF_DIR:' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const roleJson = JSON.stringify(payloadObj);
+
+  if (isSupabase) {
+    const { data: created, error } = await supabase
+      .from('personnel')
+      .insert({ name: uniqueKey, role: roleJson })
+      .select()
+      .single();
+    if (error) throw error;
+    return parseStaffRow(created);
+  }
+
+  const res = db.prepare('INSERT INTO personnel (name, role) VALUES (?, ?)').run(uniqueKey, roleJson);
+  const row = db.prepare('SELECT * FROM personnel WHERE id = ?').get(res.lastInsertRowid);
+  return parseStaffRow(row);
+}
+
+export async function updateStaffMember(id, data) {
+  let existingRow = null;
+  if (isSupabase) {
+    const { data: found } = await supabase.from('personnel').select('*').eq('id', id).maybeSingle();
+    existingRow = found;
+  } else {
+    existingRow = db.prepare('SELECT * FROM personnel WHERE id = ?').get(id);
+  }
+  if (!existingRow) throw new Error('ไม่พบข้อมูลข้าราชการที่ต้องการแก้ไข');
+
+  const oldStaff = parseStaffRow(existingRow);
+  const newImageUrl = data.image_url !== undefined ? (data.image_url || '') : oldStaff.image_url;
+
+  if (oldStaff.image_url && oldStaff.image_url !== newImageUrl) {
+    await removeAttachment(oldStaff.image_url);
+  }
+
+  const payloadObj = {
+    order_index: data.order_index !== undefined ? Number(data.order_index) : oldStaff.order_index,
+    full_name: data.full_name !== undefined ? data.full_name.trim() : oldStaff.full_name,
+    note: data.note !== undefined ? data.note.trim() : oldStaff.note,
+    nickname: data.nickname !== undefined ? (data.nickname.trim() || '-') : oldStaff.nickname,
+    phone: data.phone !== undefined ? (data.phone.trim() || '-') : oldStaff.phone,
+    position: data.position !== undefined ? data.position.trim() : oldStaff.position,
+    image_url: newImageUrl
+  };
+  const roleJson = JSON.stringify(payloadObj);
+
+  if (isSupabase) {
+    const { data: updated, error } = await supabase
+      .from('personnel')
+      .update({ role: roleJson })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return parseStaffRow(updated);
+  }
+
+  db.prepare('UPDATE personnel SET role = ? WHERE id = ?').run(roleJson, id);
+  const row = db.prepare('SELECT * FROM personnel WHERE id = ?').get(id);
+  return parseStaffRow(row);
+}
+
+export async function deleteStaffMember(id) {
+  let existingRow = null;
+  if (isSupabase) {
+    const { data: found } = await supabase.from('personnel').select('*').eq('id', id).maybeSingle();
+    existingRow = found;
+  } else {
+    existingRow = db.prepare('SELECT * FROM personnel WHERE id = ?').get(id);
+  }
+
+  if (existingRow) {
+    const staff = parseStaffRow(existingRow);
+    if (staff.image_url) {
+      await removeAttachment(staff.image_url);
+    }
+  }
+
+  if (isSupabase) {
+    const { error } = await supabase.from('personnel').delete().eq('id', id);
+    if (error) throw error;
+    return { id };
+  }
+
+  db.prepare('DELETE FROM personnel WHERE id = ?').run(id);
+  return { id };
+}
+
 export async function getPresets() {
   if (isSupabase) {
     const [catsRes, locsRes, persRes] = await Promise.all([
@@ -172,13 +364,13 @@ export async function getPresets() {
     return {
       categories: catsRes.data || [],
       locations: locsRes.data || [],
-      personnel: persRes.data || []
+      personnel: (persRes.data || []).filter((p) => !p.name?.startsWith('STAFF_DIR'))
     };
   }
 
   const categories = db.prepare('SELECT * FROM categories ORDER BY id ASC').all();
   const locations = db.prepare('SELECT * FROM locations ORDER BY id ASC').all();
-  const personnel = db.prepare('SELECT * FROM personnel ORDER BY id ASC').all();
+  const personnel = db.prepare("SELECT * FROM personnel WHERE name NOT LIKE 'STAFF_DIR%' ORDER BY id ASC").all();
   return { categories, locations, personnel };
 }
 
