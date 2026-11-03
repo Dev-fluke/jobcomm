@@ -346,7 +346,7 @@ export function formatDayMissionsForLine(dateKey: string, items: any[]): string 
     }
 
     if (m.attachment_url) {
-      const attachLink = m.attachment_url.startsWith('http') ? m.attachment_url : `https://jobcomm.ict-oryor.site${m.attachment_url}`;
+      const attachLink = m.id ? `https://jobcomm.ict-oryor.site/f/${m.id}` : (m.attachment_url.startsWith('http') ? m.attachment_url : `https://jobcomm.ict-oryor.site${m.attachment_url}`);
       block += `\nเอกสารแนบ : ${attachLink}`;
     }
     
@@ -361,6 +361,7 @@ export function formatDayMissionsForLine(dateKey: string, items: any[]): string 
  */
 export function formatMissionForLine(
   mission: {
+    id?: number;
     title: string;
     category?: string;
     start_date: string;
@@ -396,7 +397,7 @@ export function formatMissionForLine(
   }
   
   if (mission.attachment_url) {
-    const attachLink = mission.attachment_url.startsWith('http') ? mission.attachment_url : `https://jobcomm.ict-oryor.site${mission.attachment_url}`;
+    const attachLink = mission.id ? `https://jobcomm.ict-oryor.site/f/${mission.id}` : (mission.attachment_url.startsWith('http') ? mission.attachment_url : `https://jobcomm.ict-oryor.site${mission.attachment_url}`);
     lines.push(`เอกสารแนบ : ${attachLink}`);
   }
 

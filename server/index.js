@@ -103,7 +103,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     // If Supabase is active, upload to Supabase Storage Bucket 'attachments'
     if (isSupabase && supabase) {
       const fileExt = path.extname(req.file.originalname);
-      const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e6)}${fileExt}`;
+      const uniqueName = `${Math.random().toString(36).substring(2, 8)}${fileExt}`;
       const fileBuffer = fs.readFileSync(req.file.path);
 
       const { data: uploadData, error: uploadErr } = await supabase.storage
@@ -138,6 +138,24 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Short link redirect for mission attachments: /f/:key
+app.get('/f/:key', async (req, res) => {
+  try {
+    const key = req.params.key;
+    if (/^\d+$/.test(key)) {
+      const mission = await getMissionById(key);
+      if (mission && mission.attachment_url) return res.redirect(mission.attachment_url);
+    }
+    if (isSupabase && supabase) {
+      const { data } = supabase.storage.from('attachments').getPublicUrl(key);
+      if (data?.publicUrl) return res.redirect(data.publicUrl);
+    }
+    return res.redirect(`/uploads/${encodeURIComponent(key)}`);
+  } catch {
+    res.status(404).send('ไม่พบไฟล์เอกสารแนบ');
   }
 });
 
