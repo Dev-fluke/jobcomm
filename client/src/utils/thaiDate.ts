@@ -375,7 +375,7 @@ export function formatMissionForLine(
   },
   _now?: Date
 ): string {
-  const dateText = formatThaiDateRange(mission.start_date, mission.end_date);
+  const dateText = formatThaiDateRangeShort(mission.start_date, mission.end_date);
   const timeText = mission.start_time
     ? `${mission.start_time} ${mission.end_time ? `- ${mission.end_time} น.` : 'น.'}`
     : 'ไม่ระบุเวลา';
