@@ -141,16 +141,6 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
             <button
-              onClick={() => setDateFilterMode('upcoming')}
-              className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all ${
-                dateFilterMode === 'upcoming'
-                  ? 'bg-blue-800 text-white'
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-              }`}
-            >
-              ภารกิจล่วงหน้า
-            </button>
-            <button
               onClick={() => setDateFilterMode('tomorrow')}
               className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all ${
                 dateFilterMode === 'tomorrow'
@@ -159,6 +149,16 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
               }`}
             >
               ภารกิจพรุ่งนี้
+            </button>
+            <button
+              onClick={() => setDateFilterMode('upcoming')}
+              className={`px-3 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all ${
+                dateFilterMode === 'upcoming'
+                  ? 'bg-blue-800 text-white'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              ภารกิจล่วงหน้า
             </button>
             <button
               onClick={() => setDateFilterMode('specific')}
