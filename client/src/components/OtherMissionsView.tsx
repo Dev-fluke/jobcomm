@@ -36,7 +36,7 @@ export const OtherMissionsView: React.FC<OtherMissionsViewProps> = ({
   onToast
 }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [dateFilterMode, setDateFilterMode] = useState<'upcoming' | 'tomorrow' | 'specific' | 'all'>('upcoming');
+  const [dateFilterMode, setDateFilterMode] = useState<'upcoming' | 'tomorrow' | 'specific' | 'all'>('tomorrow');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Compute tomorrow date string (YYYY-MM-DD)
